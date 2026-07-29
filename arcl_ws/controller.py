@@ -1,71 +1,86 @@
+import pinocchio as pin
 import torch
-
+import numpy as np
 
 class TorqueController:
     def __init__(
         self,
         robot,
         robot_dofs_idx,
-        end_effector_link_name="hand",
+        pin_model,
+        pin_data,
+        end_effector_link_name,
     ):
         self.robot = robot
         self.robot_dofs_idx = robot_dofs_idx
+
+        self.pin_model = pin_model
+        self.pin_data = pin_data
+
         self.end_effector = robot.get_link(end_effector_link_name)
 
     def get_state(self):
-        dofs = self.robot_dofs_idx
+        """Read the current robot state."""
 
-        # Joint state
-        q = self.robot.get_dofs_position(dofs)
-        q_dot = self.robot.get_dofs_velocity(dofs)
-
-        # Dynamics
-        M_full = self.robot.get_mass_mat()
-        M = M_full[dofs][:, dofs]
-
-        # Jacobian
-        J_full = self.robot.get_jacobian(link=self.end_effector)
-        J = J_full[:, dofs]
-
-        
-        # Cartesian state
+        # read state from genesis robot model
+        q = self.robot.get_dofs_position(self.robot_dofs_idx)
+        q_dot = self.robot.get_dofs_velocity(self.robot_dofs_idx)
+        J = self.robot.get_jacobian(link=self.end_effector)
         x = self.end_effector.get_pos()
-        quat = self.end_effector.get_quat()
-
         x_dot = self.end_effector.get_vel()
-        omega = self.end_effector.get_ang()
 
-        # Diagnostics
-        tau_cmd = self.robot.get_dofs_control_force(dofs)
-        tau_measured = self.robot.get_dofs_force(dofs)
+        # calculate dynamics from pinocchio robot model
+        q_np = q.detach().cpu().numpy().astype(np.float64).reshape(-1)
+        q_dot_np = q_dot.detach().cpu().numpy().astype(np.float64).reshape(-1)
+        M = pin.crba(
+            self.pin_model,
+            self.pin_data,
+            q_np,
+        )
+        h = pin.nonLinearEffects(
+            self.pin_model,
+            self.pin_data,
+            q_np,
+            q_dot_np,
+        )
+        g = pin.computeGeneralizedGravity(
+            self.pin_model,
+            self.pin_data,
+            q_np,
+        )
+        C = h - g
 
         return {
             "q": q,
             "q_dot": q_dot,
-            "M": M,
             "J": J,
-            "J_linear": J[:3],
-            "J_angular": J[3:],
             "x": x,
-            "quat": quat,
             "x_dot": x_dot,
-            "omega": omega,
-            "tau_cmd": tau_cmd,
-            "tau_measured": tau_measured,
+            "M": torch.from_numpy(M).to(device=q.device, dtype=q.dtype),
+            "C": torch.from_numpy(C).to(device=q.device, dtype=q.dtype),
+            "g": torch.from_numpy(g).to(device=q.device, dtype=q.dtype),
         }
 
     def compute_control_torque(self):
+        """function to compute the control torques for the task
+
+        Returns:
+            torch tensor: tensor of desired control torques
+        """
         state = self.get_state()
 
         q = state["q"]
         q_dot = state["q_dot"]
-        M = state["M"]
-        J = state["J_linear"]
 
-        tau = torch.zeros(
-            len(self.robot_dofs_idx),
-            device=q.device,
-            dtype=q.dtype,
-        )
+        J = state["J"]
+        M = state["M"]
+        C = state["C"]
+        g = state["g"]
+
+        x = state["x"]
+        x_dot = state["x_dot"]
+
+        # compute control torque
+        tau = g
 
         return tau
