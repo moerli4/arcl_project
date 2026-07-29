@@ -21,7 +21,7 @@ class Robot():
         self.pin_data = self.pin_robot_model.createData()
 
         # define end effector
-        self.end_effector = self.genesis_robot_model.get_link(name="link7")
+        self.end_effector = self.genesis_robot_model.get_link(name="attachment")
         self.end_effector_idx = self.end_effector.idx_local
 
         # torque limits
@@ -37,10 +37,10 @@ class Robot():
         J = self.genesis_robot_model.get_jacobian(link=self.end_effector).cpu().numpy()
         x = self.end_effector.get_pos().cpu().numpy()
         x_dot = self.end_effector.get_vel().cpu().numpy()
-        f_ext_ee = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx].cpu().numpy()
+        quaternion = self.end_effector.get_quat().detach().cpu().numpy()
+        f_ext = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx].cpu().numpy()
 
         # calculate dynamics from pinocchio robot model
-
         M = pin.crba(
             self.pin_robot_model,
             self.pin_data,
@@ -52,12 +52,6 @@ class Robot():
             q,
             q_dot,
         )
-        g = pin.computeGeneralizedGravity(
-            self.pin_robot_model,
-            self.pin_data,
-            q,
-        )
-        C = h - g
 
         return {
             "q": q,
@@ -65,10 +59,10 @@ class Robot():
             "J": J,
             "x": x,
             "x_dot": x_dot,
-            "f_ext_ee": f_ext_ee,
+            "quaternion": quaternion,
+            "f_ext": f_ext,
             "M": M,
-            "C": C,
-            "g": g,
+            "h": h,
         }
 
     def command_torque(self, tau_cmd):

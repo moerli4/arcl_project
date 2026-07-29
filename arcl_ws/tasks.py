@@ -1,31 +1,32 @@
 import numpy as np
 
-class CylinderTask:
-    """Task for moving the end effector onto a cylinder."""
 
-    def __init__(self, radius, K, D):
-        self.radius = radius
-        self.K = K
-        self.D = D
+class DemoTask:
+    """Simple Cartesian point-to-point task."""
 
-    def update(self, state):
-        x = state["x"]
-        x_dot = state["x_dot"]
-        Jv = state["J"][:3, :]
+    def __init__(self):
+        self.K = 10.0
+        self.D = 2.0
 
-        rho = np.sqrt(x[0]**2 + x[1]**2)
-
-        radial_direction = np.array([
-            x[0] / rho,
-            x[1] / rho,
-            0.0,
+        # target position in world coordinates
+        self.target = np.array([
+            0.5,
+            0.5,
+            0.1,
         ])
 
-        self.J = radial_direction.reshape(1, 3) @ Jv
+    def update(self, state):
 
-        rho_dot = radial_direction @ x_dot
+        x = state["x"]
 
-        error = self.radius - rho
-        error_dot = -rho_dot
+        Jv = state["J"][:3, :]
+        x_dot = Jv @ state["q_dot"]
 
-        self.f_des = self.K * error + self.D * error_dot
+        error = self.target - x
+        error_dot = -x_dot
+
+        self.J = Jv
+        self.f_des = (
+            self.K * error
+            + self.D * error_dot
+        )

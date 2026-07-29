@@ -1,7 +1,7 @@
 import numpy as np
 import cvxpy as cp
 
-from tasks import CylinderTask
+from tasks import DemoTask
 
 
 class TorqueController:
@@ -13,11 +13,7 @@ class TorqueController:
 
         # define tasks in order of priority
         self.tasks = [
-            CylinderTask(
-                radius=0.4,
-                K=10.0,
-                D=2.0,
-            ),
+            DemoTask()
         ]
 
     def compute_control_torque(self):
@@ -31,9 +27,7 @@ class TorqueController:
         state = self.robot.get_state()
 
         M = state["M"]
-        C = state["C"]
-        g = state["g"]
-        q_dot = state["q_dot"]
+        h = state["h"]
 
         M_inv = np.linalg.inv(M)
         n = M.shape[0]
@@ -48,35 +42,33 @@ class TorqueController:
             # update task and retrieve task jacobian and desired force f_i
             task.update(state)
             J_i = task.J
-            f_i = task.f_des
+            f_i = np.atleast_1d(task.f_des)
 
             # initialize tau_i as the minimization variable
             tau_i = cp.Variable(n)
 
             # define quadratic minimization problem with cvxpy (Equation 18)
             objective = cp.Minimize(
-                cp.sum_squares(
-                    J_i @ M_inv @ tau_i
-                    - J_i @ M_inv @ J_i.T @ f_i
-                )
-                + 1e-6 * cp.sum_squares(tau_i)
+                cp.sum_squares(J_i @ M_inv @ tau_i - J_i @ M_inv @ J_i.T @ f_i) + 1e-6 * cp.sum_squares(tau_i)
             )
 
             constraints = []
 
             # enforce robot torque limits with coriolis and gravity compensation (Equation 21)
             constraints = [
-                tau_i >= self.robot.tau_min - (C @ q_dot + g),
-                tau_i <= self.robot.tau_max - (C @ q_dot + g),
+                tau_i >= self.robot.tau_min - (h),
+                tau_i <= self.robot.tau_max - (h),
             ]
             
             # enforce all higher priority tasks as constraints (Equation 18)
             for j in range(i):
                 J_j = J_task_history[j]
+                tau_j = tau_opt_history[j]
+
                 constraints.append(
-                    J_task_history[j] @ M_inv @ tau_opt_history[j]
+                    J_j @ M_inv @ tau_j
                     ==
-                    J_task_history[j] @ M_inv @ tau_i
+                    J_j @ M_inv @ tau_i
                 )
 
             # solve for optimal tau
@@ -91,6 +83,6 @@ class TorqueController:
         tau_opt = tau_opt_history[-1] 
 
         # Calculate desired torque with coriolis and gravity compensation (Equation 20)
-        tau_d = tau_opt + C @ q_dot + g
+        tau_d = tau_opt + h
 
         return tau_d
