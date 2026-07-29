@@ -1,3 +1,6 @@
+# example ws
+arcl_ws_example/
+
 # Python
 __pycache__/
 *.py[cod]
