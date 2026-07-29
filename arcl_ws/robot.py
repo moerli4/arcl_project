@@ -24,35 +24,38 @@ class Robot():
         self.end_effector = self.genesis_robot_model.get_link(name="link7")
         self.end_effector_idx = self.end_effector.idx_local
 
+        # torque limits
+        self.tau_max = self.pin_robot_model.effortLimit
+        self.tau_min = -self.tau_max
+
     def get_state(self):
         """Read the current robot state."""
 
         # read state from genesis robot model
-        q = self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx)
-        q_dot = self.genesis_robot_model.get_dofs_velocity(self.robot_dofs_idx)
-        J = self.genesis_robot_model.get_jacobian(link=self.end_effector)
-        x = self.end_effector.get_pos()
-        x_dot = self.end_effector.get_vel()
-        f_ext_ee = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx]
+        q = self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx).cpu().numpy()
+        q_dot = self.genesis_robot_model.get_dofs_velocity(self.robot_dofs_idx).cpu().numpy()
+        J = self.genesis_robot_model.get_jacobian(link=self.end_effector).cpu().numpy()
+        x = self.end_effector.get_pos().cpu().numpy()
+        x_dot = self.end_effector.get_vel().cpu().numpy()
+        f_ext_ee = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx].cpu().numpy()
 
         # calculate dynamics from pinocchio robot model
-        q_np = q.detach().cpu().numpy().astype(np.float64).reshape(-1)
-        q_dot_np = q_dot.detach().cpu().numpy().astype(np.float64).reshape(-1)
+
         M = pin.crba(
             self.pin_robot_model,
             self.pin_data,
-            q_np,
+            q,
         )
         h = pin.nonLinearEffects(
             self.pin_robot_model,
             self.pin_data,
-            q_np,
-            q_dot_np,
+            q,
+            q_dot,
         )
         g = pin.computeGeneralizedGravity(
             self.pin_robot_model,
             self.pin_data,
-            q_np,
+            q,
         )
         C = h - g
 
@@ -63,13 +66,14 @@ class Robot():
             "x": x,
             "x_dot": x_dot,
             "f_ext_ee": f_ext_ee,
-            "M": torch.from_numpy(M).to(device=q.device, dtype=q.dtype),
-            "C": torch.from_numpy(C).to(device=q.device, dtype=q.dtype),
-            "g": torch.from_numpy(g).to(device=q.device, dtype=q.dtype),
+            "M": M,
+            "C": C,
+            "g": g,
         }
 
     def command_torque(self, tau_cmd):
         """Send torque command to the simulated robot."""
+        tau_cmd = torch.from_numpy(tau_cmd).float()
 
         self.genesis_robot_model.control_dofs_force(
                 tau_cmd,

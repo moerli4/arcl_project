@@ -1,7 +1,6 @@
 import genesis as gs
 from controller import TorqueController
 from robot import Robot
-import pinocchio as pin
 from pathlib import Path
 
 assets_dir = Path(gs.__file__).parent / "assets"
@@ -50,3 +49,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""Idea:
+Task 1 cylindrical motion around base while exerting force externally against some wall or something
+Task 2 obstacle avoidance
+Task 3 stay at certain height if possible
+Task 4 avoid singularity
+"""
