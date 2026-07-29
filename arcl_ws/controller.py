@@ -55,8 +55,8 @@ class TorqueController:
 
             # enforce robot torque limits with coriolis and gravity compensation (Equation 21)
             constraints = [
-                tau_i >= self.robot.tau_min - (h),
-                tau_i <= self.robot.tau_max - (h),
+                tau_i >= self.robot.tau_min - h,
+                tau_i <= self.robot.tau_max - h,
             ]
 
             # enforce all higher priority tasks as constraints (Equation 18)
