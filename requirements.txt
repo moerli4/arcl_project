@@ -1,5 +1,6 @@
 genesis-world
 matplotlib
 torch
+numpy
 black
 pin

@@ -1,5 +1,6 @@
 import genesis as gs
 from controller import TorqueController
+from robot import Robot
 import pinocchio as pin
 from pathlib import Path
 
@@ -22,19 +23,11 @@ def main():
     # add ground plane
     plane = scene.add_entity(gs.morphs.Plane())
 
-    # add robot to the scene
-    robot = scene.add_entity(
-        gs.morphs.MJCF(file=robot_xml_path,
-        pos   = (0.0, 0.0, 0.0),
-        euler = (0, 0, 0),
-        ),
+    # create robot
+    robot = Robot(
+        scene=scene, 
+        robot_xml_path=robot_xml_path,
     )
-    arm_jnt_names = ['joint1','joint2','joint3','joint4','joint5','joint6','joint7']
-    robot_arm_dofs_idx = [robot.get_joint(name).dof_idx_local for name in arm_jnt_names]
-
-    # create pinocchio robot model
-    pin_robot_model = pin.buildModelsFromMJCF(filename=robot_xml_path)[0]
-    data = pin_robot_model.createData()
 
     # build scene
     scene.build()
@@ -42,10 +35,6 @@ def main():
     # create controller object
     controller = TorqueController(
         robot=robot,
-        robot_dofs_idx=robot_arm_dofs_idx,
-        pin_model=pin_robot_model,
-        pin_data=data,
-        end_effector_link_name="link7",
     )
 
     # simulate
@@ -54,10 +43,7 @@ def main():
         control_torque = controller.compute_control_torque()
 
         # command control torque
-        robot.control_dofs_force(
-            control_torque,
-            robot_arm_dofs_idx,
-        )
+        robot.command_torque(tau_cmd=control_torque)
 
         # step the simulation
         scene.step()
