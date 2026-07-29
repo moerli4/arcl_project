@@ -1,6 +1,4 @@
-import pinocchio as pin
 import torch
-import numpy as np
 
 class TorqueController:
     def __init__(
@@ -8,6 +6,8 @@ class TorqueController:
         robot,
     ):
         self.robot = robot
+        self.K = 10
+        self.D = 1
         
     def compute_control_torque(self):
         """function to compute the control torques for the task
@@ -28,7 +28,11 @@ class TorqueController:
         x = state["x"]
         x_dot = state["x_dot"]
 
-        tau_measured = state["tau_measured"]
+        f_ext_ee = state["f_ext_ee"]
+
+        # compute dynamically consistent pseudo-inverse
+        M_inv = torch.linalg.inv(M)
+        J_cross = M_inv @ J.T @ torch.linalg.pinv(J @ M_inv @ J.T)
 
         # compute control torque
         tau = g

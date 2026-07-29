@@ -21,8 +21,8 @@ class Robot():
         self.pin_data = self.pin_robot_model.createData()
 
         # define end effector
-        end_effector_link = "link7"
-        self.end_effector = self.genesis_robot_model.get_link(end_effector_link)
+        self.end_effector = self.genesis_robot_model.get_link(name="link7")
+        self.end_effector_idx = self.end_effector.idx_local
 
     def get_state(self):
         """Read the current robot state."""
@@ -33,7 +33,7 @@ class Robot():
         J = self.genesis_robot_model.get_jacobian(link=self.end_effector)
         x = self.end_effector.get_pos()
         x_dot = self.end_effector.get_vel()
-        tau_measured = self.genesis_robot_model.get_dofs_force()
+        f_ext_ee = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx]
 
         # calculate dynamics from pinocchio robot model
         q_np = q.detach().cpu().numpy().astype(np.float64).reshape(-1)
@@ -62,7 +62,7 @@ class Robot():
             "J": J,
             "x": x,
             "x_dot": x_dot,
-            "tau_measured": tau_measured,
+            "f_ext_ee": f_ext_ee,
             "M": torch.from_numpy(M).to(device=q.device, dtype=q.dtype),
             "C": torch.from_numpy(C).to(device=q.device, dtype=q.dtype),
             "g": torch.from_numpy(g).to(device=q.device, dtype=q.dtype),
