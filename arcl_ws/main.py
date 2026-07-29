@@ -4,7 +4,10 @@ from robot import Robot
 from pathlib import Path
 
 assets_dir = Path(gs.__file__).parent / "assets"
-robot_xml_path = assets_dir / "xml/franka_emika_panda/panda_nohand.xml" # use builtin panda 7dof robot with no hand
+robot_xml_path = (
+    assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
+)  # use builtin panda 7dof robot with no hand
+
 
 def main():
     # initialize genesis
@@ -24,7 +27,7 @@ def main():
 
     # create robot
     robot = Robot(
-        scene=scene, 
+        scene=scene,
         robot_xml_path=robot_xml_path,
     )
 
@@ -46,6 +49,7 @@ def main():
 
         # step the simulation
         scene.step()
+
 
 if __name__ == "__main__":
     main()

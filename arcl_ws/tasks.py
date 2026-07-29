@@ -9,11 +9,13 @@ class DemoTask:
         self.D = 2.0
 
         # target position in world coordinates
-        self.target = np.array([
-            0.5,
-            0.5,
-            0.1,
-        ])
+        self.target = np.array(
+            [
+                0.5,
+                0.5,
+                0.1,
+            ]
+        )
 
     def update(self, state):
 
@@ -26,7 +28,4 @@ class DemoTask:
         error_dot = -x_dot
 
         self.J = Jv
-        self.f_des = (
-            self.K * error
-            + self.D * error_dot
-        )
+        self.f_des = self.K * error + self.D * error_dot

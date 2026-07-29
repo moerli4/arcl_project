@@ -12,9 +12,7 @@ class TorqueController:
         self.robot = robot
 
         # define tasks in order of priority
-        self.tasks = [
-            DemoTask()
-        ]
+        self.tasks = [DemoTask()]
 
     def compute_control_torque(self):
         """function to compute the control torques for the task
@@ -49,7 +47,8 @@ class TorqueController:
 
             # define quadratic minimization problem with cvxpy (Equation 18)
             objective = cp.Minimize(
-                cp.sum_squares(J_i @ M_inv @ tau_i - J_i @ M_inv @ J_i.T @ f_i) + 1e-6 * cp.sum_squares(tau_i)
+                cp.sum_squares(J_i @ M_inv @ tau_i - J_i @ M_inv @ J_i.T @ f_i)
+                + 1e-6 * cp.sum_squares(tau_i)
             )
 
             constraints = []
@@ -59,17 +58,13 @@ class TorqueController:
                 tau_i >= self.robot.tau_min - (h),
                 tau_i <= self.robot.tau_max - (h),
             ]
-            
+
             # enforce all higher priority tasks as constraints (Equation 18)
             for j in range(i):
                 J_j = J_task_history[j]
                 tau_j = tau_opt_history[j]
 
-                constraints.append(
-                    J_j @ M_inv @ tau_j
-                    ==
-                    J_j @ M_inv @ tau_i
-                )
+                constraints.append(J_j @ M_inv @ tau_j == J_j @ M_inv @ tau_i)
 
             # solve for optimal tau
             problem = cp.Problem(objective, constraints)
@@ -80,7 +75,7 @@ class TorqueController:
             J_task_history[i] = task.J
 
         # extract optimal tau
-        tau_opt = tau_opt_history[-1] 
+        tau_opt = tau_opt_history[-1]
 
         # Calculate desired torque with coriolis and gravity compensation (Equation 20)
         tau_d = tau_opt + h
