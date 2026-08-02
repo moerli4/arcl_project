@@ -37,7 +37,8 @@ def main():
     sphere_radius = .2
     sphere_center = (.4,.4,.4)
     tasks = [
-        SphereTask(robot,radius=sphere_radius,center=sphere_center),
+        SphereTask(robot=robot,radius=sphere_radius,center=sphere_center),
+        MaximizeManipulabilityTask(robot=robot)
     ]
     scene.add_entity(
         gs.morphs.Sphere(
