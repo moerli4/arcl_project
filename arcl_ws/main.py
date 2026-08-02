@@ -1,7 +1,9 @@
 import genesis as gs
 from controller import TorqueController
+from tasks import SphereTask
 from robot import Robot
 from pathlib import Path
+
 
 assets_dir = Path(gs.__file__).parent / "assets"
 robot_xml_path = (
@@ -31,12 +33,33 @@ def main():
         robot_xml_path=robot_xml_path,
     )
 
-    # build scene
+    # define control objectives
+    sphere_radius = .2
+    sphere_center = (.4,.4,.4)
+    tasks = [
+        SphereTask(robot,radius=sphere_radius,center=sphere_center)
+    ]
+    scene.add_entity(
+        gs.morphs.Sphere(
+            pos=sphere_center,
+            radius=sphere_radius,
+            fixed=True,
+            collision=False,
+            visualization=True,
+        ),
+        surface=gs.surfaces.Default(
+            color=(1.0, 0.0, 0.0, 0.25),
+        ),
+    )
+
+    #  build scene
     scene.build()
+
 
     # create controller object
     controller = TorqueController(
-        robot=robot,
+        robot = robot,
+        tasks = tasks
     )
 
     # simulate
@@ -53,11 +76,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""Idea:
-Task 1 cylindrical motion around base while exerting force externally against some wall or something
-Task 2 obstacle avoidance
-Task 3 stay at certain height if possible
-Task 4 avoid singularity
-"""

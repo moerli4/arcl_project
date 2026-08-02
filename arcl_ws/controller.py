@@ -1,18 +1,16 @@
 import numpy as np
 import cvxpy as cp
 
-from tasks import DemoTask
-
-
 class TorqueController:
     def __init__(
         self,
         robot,
+        tasks,
     ):
         self.robot = robot
 
         # define tasks in order of priority
-        self.tasks = [DemoTask()]
+        self.tasks = tasks
 
     def compute_control_torque(self):
         """function to compute the control torques for the task
@@ -38,9 +36,7 @@ class TorqueController:
         for i, task in enumerate(self.tasks):
 
             # update task and retrieve task jacobian and desired force f_i
-            task.update(state)
-            J_i = task.J
-            f_i = np.atleast_1d(task.f_des)
+            J_i, f_i = task.update(state)
 
             # initialize tau_i as the minimization variable
             tau_i = cp.Variable(n)
@@ -72,7 +68,7 @@ class TorqueController:
 
             # save the task jacobian and optimal tau
             tau_opt_history[i] = tau_i.value
-            J_task_history[i] = task.J
+            J_task_history[i] = J_i
 
         # extract optimal tau
         tau_opt = tau_opt_history[-1]
