@@ -38,7 +38,6 @@ def main():
     sphere_center = (.4,.4,.4)
     tasks = [
         SphereTask(robot,radius=sphere_radius,center=sphere_center),
-        AvoidJointLimitsTask(robot=robot),
     ]
     scene.add_entity(
         gs.morphs.Sphere(
@@ -55,7 +54,6 @@ def main():
 
     #  build scene
     scene.build()
-
 
     # create controller object
     controller = TorqueController(
