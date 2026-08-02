@@ -37,8 +37,8 @@ class SphereTask:
     """Use virtual joint to constrain the end effector to a sphere of specified radius around a specified point."""
 
     def __init__(self, robot, radius, center, ee_frame_name="attachment"):
-        self.K = 10.0
-        self.D = 2.0
+        self.K = 20.0
+        self.D = 10.0
 
         self.model = robot.pin_robot_model.copy()
         self.center = center
@@ -84,3 +84,29 @@ class SphereTask:
 
         return J, np.atleast_1d(f_des)
 
+class AvoidJointLimitsTask:
+    """Keep joints near the middle of their joint limits."""
+
+    def __init__(self, robot):
+        self.model = robot.pin_robot_model
+
+        self.K = 5
+        self.D = 5
+
+        self.q_min = self.model.lowerPositionLimit
+        self.q_max = self.model.upperPositionLimit
+        self.q_mid = 0.5 * (self.q_min + self.q_max)
+        self.q_range = self.q_max - self.q_min
+
+    def update(self, state):
+        q = state["q"]
+        q_dot = state["q_dot"]
+
+        grad_w = -(q - self.q_mid) / (
+            self.model.nv * self.q_range**2
+        )
+
+        J = np.eye(self.model.nv)
+        f_des = self.K * grad_w - self.D * q_dot
+
+        return J, np.atleast_1d(f_des)

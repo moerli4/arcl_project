@@ -1,6 +1,6 @@
 import genesis as gs
 from controller import TorqueController
-from tasks import SphereTask
+from tasks import *
 from robot import Robot
 from pathlib import Path
 
@@ -37,7 +37,8 @@ def main():
     sphere_radius = .2
     sphere_center = (.4,.4,.4)
     tasks = [
-        SphereTask(robot,radius=sphere_radius,center=sphere_center)
+        SphereTask(robot,radius=sphere_radius,center=sphere_center),
+        AvoidJointLimitsTask(robot=robot),
     ]
     scene.add_entity(
         gs.morphs.Sphere(
