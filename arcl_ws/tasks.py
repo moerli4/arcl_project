@@ -257,7 +257,6 @@ class MaximizeManipulabilityTask:
 
         return J_task, np.atleast_1d(f_des)
 
-
 class PointToPointTask:
     """Move the ee periodically between two cartesian points."""
 
