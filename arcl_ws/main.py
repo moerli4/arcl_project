@@ -9,7 +9,7 @@ assets_dir = Path(gs.__file__).parent / "assets"
 robot_xml_path = (
     assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
 )  # use builtin panda 7dof robot with no hand
-
+dt = 0.01
 
 def main():
     # initialize genesis
@@ -19,7 +19,7 @@ def main():
     scene = gs.Scene(
         show_viewer=True,
         sim_options=gs.options.SimOptions(
-            dt=0.01,
+            dt=dt,
             gravity=(0.0, 0.0, -9.81),
         ),
     )
@@ -36,12 +36,16 @@ def main():
     # define control objectives
     tasks = [
         # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
-        CylinderTask(robot=robot,radius=.2,center=(.5,.5), scene=scene),
+        CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
+        PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
         MaximizeManipulabilityTask(robot=robot)
     ]
 
-    #  build scene
+    # build scene
     scene.build()
+
+    # set initial configuration
+    robot.set_initial_qpos([-0.7832289,-0.,1.6776268,-2.3540459,-2.6584413,2.4483817,0.88819057])
 
     # create controller object
     controller = TorqueController(
@@ -55,7 +59,9 @@ def main():
         control_torque = controller.compute_control_torque()
 
         # command control torque
-        robot.command_torque(tau_cmd=control_torque)
+        robot.command_torque(tau_cmd=control_torque)    
+
+        print(robot.get_state()["q"])
 
         # step the simulation
         scene.step()

@@ -6,7 +6,6 @@ import genesis as gs
 
 class Robot:
     def __init__(self, scene, robot_xml_path, ee_frame_name="attachment"):
-
         # add robot to the scene
         self.genesis_robot_model = scene.add_entity(
             gs.morphs.MJCF(
@@ -41,6 +40,9 @@ class Robot:
         # torque limits
         self.tau_max = self.pin_robot_model.effortLimit
         self.tau_min = -self.tau_max
+
+    def set_initial_qpos(self, qpos): 
+        self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
 
     def get_state(self):
         """Read the current robot state."""
@@ -100,21 +102,6 @@ class Robot:
             pin.LOCAL_WORLD_ALIGNED,
         ).copy()
 
-        # manipulator J and H for manipulability measure
-        J_manip = pin.getJointJacobian(
-            self.pin_robot_model,
-            self.pin_data,
-            self.pin_ee_joint_id,
-            pin.LOCAL_WORLD_ALIGNED,
-        ).copy()
-
-        H_manip = pin.getJointKinematicHessian(
-            self.pin_robot_model,
-            self.pin_data,
-            self.pin_ee_joint_id,
-            pin.LOCAL_WORLD_ALIGNED,
-        ).copy()
-
         # dynamics
         M = pin.crba(
             self.pin_robot_model,
@@ -133,8 +120,6 @@ class Robot:
             "q": q,
             "q_dot": q_dot,
             "J": J,
-            "J_manip": J_manip, 
-            "H_manip": H_manip,
             "x": x,
             "x_dot": x_dot,
             "quaternion": quaternion,

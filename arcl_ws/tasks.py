@@ -220,12 +220,27 @@ class MaximizeManipulabilityTask:
     """Maximize manipulability by maximizing yoshikawa measure."""
     def __init__(self, robot):
         self.model = robot.pin_robot_model
+        self.data = robot.pin_data
+        self.ee_id = robot.pin_ee_joint_id
         self.K = 2.0
         self.D = .5
 
     def update(self, state):
-        J = state["J_manip"][:3, :]
-        H = state["H_manip"][:3, :, :]
+        # manipulator J and H
+        J = pin.getJointJacobian(
+            self.model,
+            self.data,
+            self.ee_id,
+            pin.LOCAL_WORLD_ALIGNED,
+        )[:3, :]
+
+        H = pin.getJointKinematicHessian(
+            self.model,
+            self.data,
+            self.ee_id,
+            pin.LOCAL_WORLD_ALIGNED,
+        )[:3, :, :]
+
         q_dot = state["q_dot"]
 
         w = np.sqrt(max(0.0, np.linalg.det(J @ J.T)))
@@ -241,3 +256,63 @@ class MaximizeManipulabilityTask:
         f_des = self.K * grad_w - self.D * q_dot
 
         return J_task, np.atleast_1d(f_des)
+
+
+class PointToPointTask:
+    """Move the ee periodically between two cartesian points."""
+
+    def __init__(
+        self, p0, p1, period, scene, dt, ee_frame_name="attachment",
+    ):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.p0 = np.asarray(p0, dtype=float)
+        self.p1 = np.asarray(p1, dtype=float)
+        self.period = period
+        self.time = 0.0
+        self.dt = dt
+
+        for p in [self.p0, self.p1]:
+            scene.add_entity(
+                gs.morphs.Sphere(
+                    pos=p,
+                    radius=0.03,
+                    fixed=True,
+                    collision=False,
+                    visualization=True,
+                ),
+                surface=gs.surfaces.Default(
+                    color=(0.0, 1.0, 0.0, 0.5),
+                ),
+            )
+
+    def update(self, state):
+        v = state["q_dot"]
+
+        dt = self.dt
+        self.time += dt
+
+        p = state["x"]
+        J6 = state["J"]
+
+        J = J6[:3, :]
+        velocity = J @ v
+
+        # oscillate between p0 and p1
+        phase = 2.0 * np.pi * self.time / self.period
+
+        alpha = 0.5 * (1.0 - np.cos(phase))
+        alpha_dot = 0.5 * (2.0 * np.pi / self.period) * np.sin(phase)
+
+        target = self.p0 + alpha * (self.p1 - self.p0)
+        target_velocity = alpha_dot * (self.p1 - self.p0)
+
+        error = target - p
+
+        f_des = (
+            self.K * error
+            + self.D * (target_velocity - velocity)
+        )
+
+        return J, f_des
