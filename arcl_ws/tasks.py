@@ -2,38 +2,6 @@ import numpy as np
 import pinocchio as pin
 import genesis as gs
 
-
-class DemoTask:
-    """Simple Cartesian point-to-point task."""
-
-    def __init__(self):
-        self.K = 10.0
-        self.D = 2.0
-
-        # target position in world coordinates
-        self.target = np.array(
-            [
-                0.5,
-                0.5,
-                0.1,
-            ]
-        )
-
-    def update(self, state):
-
-        x = state["x"]
-
-        Jv = state["J"][:3, :]
-        x_dot = state["x_dot"]
-
-        error = self.target - x
-        error_dot = -x_dot
-
-        f_des = self.K * error + self.D * error_dot
-
-        return Jv, np.atleast_1d(f_des)
-
-
 class SphereTask:
     """Use virtual joint to constrain the end effector to a sphere of specified radius around a specified point."""
 
@@ -216,6 +184,7 @@ class AvoidJointLimitsTask:
 
         return J_task, np.atleast_1d(f_des)
 
+
 class MaximizeManipulabilityTask:
     """Maximize manipulability by maximizing yoshikawa measure."""
     def __init__(self, robot):
@@ -256,6 +225,7 @@ class MaximizeManipulabilityTask:
         f_des = self.K * grad_w - self.D * q_dot
 
         return J_task, np.atleast_1d(f_des)
+
 
 class PointToPointTask:
     """Move the ee periodically between two cartesian points."""
@@ -315,6 +285,7 @@ class PointToPointTask:
         )
 
         return J, f_des
+
 
 class HorizontalPlaneTask:
     """Constrain ee to a horizontal height and keep ee orthogonal ie pointing downwards
