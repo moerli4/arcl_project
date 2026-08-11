@@ -36,8 +36,9 @@ def main():
     # define control objectives
     tasks = [
         # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
-        CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
-        PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
+        # CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
+        # PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
+        HorizontalPlaneTask(height=0.2),
         MaximizeManipulabilityTask(robot=robot)
     ]
 

@@ -91,8 +91,9 @@ class Robot:
         )
 
         x = oM_ee.translation.copy()
+        ee_rotation = oM_ee.rotation.copy()
         x_dot = ee_velocity.linear.copy()
-        quaternion = pin.Quaternion(oM_ee.rotation).coeffs().copy()
+        quaternion = pin.Quaternion(ee_rotation).coeffs().copy()
 
         # jacobian
         J = pin.getFrameJacobian(
@@ -121,6 +122,7 @@ class Robot:
             "q_dot": q_dot,
             "J": J,
             "x": x,
+            "ee_rotation": ee_rotation,
             "x_dot": x_dot,
             "quaternion": quaternion,
             "M": M,

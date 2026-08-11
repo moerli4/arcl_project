@@ -262,7 +262,7 @@ class PointToPointTask:
     """Move the ee periodically between two cartesian points."""
 
     def __init__(
-        self, p0, p1, period, scene, dt, ee_frame_name="attachment",
+        self, p0, p1, period, scene, dt,
     ):
         self.K = 20.0
         self.D = 10.0
@@ -316,3 +316,39 @@ class PointToPointTask:
         )
 
         return J, f_des
+
+class HorizontalPlaneTask:
+    """Constrain ee to a horizontal height and keep ee orthogonal ie pointing downwards
+    """
+
+    def __init__(
+        self,
+        height,
+    ):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.height = height
+
+    def update(self, state):
+        v = state["q_dot"]
+        p = state["x"]
+        z = state["ee_rotation"][:, 2]
+
+        J6 = state["J"]
+
+        Jz = -pin.skew(z) @ J6[3:, :]
+
+        J = np.vstack([
+            J6[2, :], 
+            Jz[0, :],
+            Jz[1, :], 
+        ])
+
+        f_des = np.array([
+            self.K * (self.height - p[2]) - self.D * (J6[2, :] @ v),
+            -self.K * z[0] - self.D * (Jz[0, :] @ v),
+            -self.K * z[1] - self.D * (Jz[1, :] @ v),
+        ])
+
+        return J, np.atleast_1d(f_des)
