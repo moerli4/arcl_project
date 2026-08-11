@@ -34,24 +34,11 @@ def main():
     )
 
     # define control objectives
-    sphere_radius = .2
-    sphere_center = (.4,.4,.4)
     tasks = [
-        SphereTask(robot=robot,radius=sphere_radius,center=sphere_center),
+        # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
+        CylinderTask(robot=robot,radius=.2,center=(.5,.5), scene=scene),
         MaximizeManipulabilityTask(robot=robot)
     ]
-    scene.add_entity(
-        gs.morphs.Sphere(
-            pos=sphere_center,
-            radius=sphere_radius,
-            fixed=True,
-            collision=False,
-            visualization=True,
-        ),
-        surface=gs.surfaces.Default(
-            color=(1.0, 0.0, 0.0, 0.25),
-        ),
-    )
 
     #  build scene
     scene.build()

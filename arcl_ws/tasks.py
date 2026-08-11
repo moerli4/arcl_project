@@ -1,5 +1,6 @@
 import numpy as np
 import pinocchio as pin
+import genesis as gs
 
 
 class DemoTask:
@@ -36,14 +37,14 @@ class DemoTask:
 class SphereTask:
     """Use virtual joint to constrain the end effector to a sphere of specified radius around a specified point."""
 
-    def __init__(self, robot, radius, center, ee_frame_name="attachment"):
+    def __init__(self, robot, radius, center, scene, ee_frame_name="attachment"):
         self.K = 20.0
         self.D = 10.0
 
         self.model = robot.pin_robot_model.copy()
         self.center = center
 
-        # create virtual joint link at sphere center
+        # create virtual joint link
         ee_frame_id = self.model.getFrameId(ee_frame_name)
         ee_frame = self.model.frames[ee_frame_id]
         self.virtual_frame_id = self.model.addFrame(
@@ -57,6 +58,19 @@ class SphereTask:
         )
         self.model_data = self.model.createData()
 
+        # add visualization     
+        scene.add_entity(
+            gs.morphs.Sphere(
+                pos=center,
+                radius=radius,
+                fixed=True,
+                collision=False,
+                visualization=True,
+            ),
+            surface=gs.surfaces.Default(
+                color=(1.0, 0.0, 0.0, 0.25),
+            ),
+        )
 
     def update(self, state):
 
@@ -83,6 +97,97 @@ class SphereTask:
         f_des = self.K * error - self.D * velocity
 
         return J, np.atleast_1d(f_des)
+
+
+class CylinderTask:
+    """Use virtual joint to constrain the end effector to a vertical cylinder of specified radius around a specified point in x-y-plane."""
+
+    def __init__(self, robot, radius, center, scene, ee_frame_name="attachment"):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.model = robot.pin_robot_model.copy()
+
+        assert len(center)==2 # (x,y)
+        self.center = center
+
+        # create virtual joint link
+        ee_frame_id = self.model.getFrameId(ee_frame_name)
+        ee_frame = self.model.frames[ee_frame_id]
+        self.virtual_frame_id = self.model.addFrame(
+            pin.Frame(
+                "virtual_frame",
+                ee_frame.parentJoint,
+                ee_frame_id,
+                ee_frame.placement * pin.SE3(np.eye(3), np.array([0.0, 0.0, radius])),
+                pin.FrameType.OP_FRAME,
+            )
+        )
+        self.model_data = self.model.createData()
+
+        # add visualization     
+        scene.add_entity(
+            gs.morphs.Cylinder(
+                pos=np.array([center[0], center[1], 0]),
+                radius=radius,
+                height=5,
+                fixed=True,
+                collision=False,
+                visualization=True,
+            ),
+            surface=gs.surfaces.Default(
+                color=(1.0, 0.0, 0.0, 0.25),
+            ),
+        )
+
+    def update(self, state):
+
+        q = state["q"]
+        v = state["q_dot"]
+        
+        pin.forwardKinematics(self.model, self.model_data, q, v)
+        pin.updateFramePlacements(self.model, self.model_data)
+        pin.computeJointJacobians(self.model, self.model_data, q)
+
+        position = self.model_data.oMf[self.virtual_frame_id].translation
+        R = self.model_data.oMf[self.virtual_frame_id].rotation
+
+        J6 = pin.getFrameJacobian(
+            self.model,
+            self.model_data,
+            self.virtual_frame_id,
+            pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+
+        # position: on the cylinder
+        J_xy = J6[:2, :]
+        velocity_xy = J_xy @ v
+        error_xy = self.center - position[:2]
+        f_xy = self.K * error_xy - self.D * velocity_xy
+
+        # orientation: orthogonal to cylinder (horizontal z)
+        z = R[:, 2]
+        error_z = -z[2]
+        J_angular = J6[3:, :]
+        ez = np.array([0.0, 0.0, 1.0])
+        z_dot_jacobian = (
+            ez @ (-pin.skew(z)) @ J_angular
+        )
+        velocity_z = z_dot_jacobian @ v
+        f_z = self.K * error_z - self.D * velocity_z
+
+        # combine position and orientation
+        J = np.vstack([
+            J_xy,
+            z_dot_jacobian,
+        ])
+        f_des = np.concatenate([
+            f_xy,
+            np.atleast_1d(f_z),
+        ])
+
+        return J, np.atleast_1d(f_des)
+
 
 class AvoidJointLimitsTask:
     """Keep joints near the middle of their joint limits."""
