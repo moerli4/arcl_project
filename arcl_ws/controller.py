@@ -2,6 +2,7 @@ import numpy as np
 import cvxpy as cp
 import matplotlib.pyplot as plt
 
+
 class TorqueController:
     def __init__(
         self,
@@ -12,14 +13,14 @@ class TorqueController:
         self.tasks = tasks
 
     def compute_control_torque(self):
-        J, f_des = None, None 
+        J, f_des = None, None
         return J, f_des
 
     def plot_cartesian_pos_errors(self, dt):
         fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
         for i, task in enumerate(self.tasks):
-            if not hasattr(task,"error_hist"):
+            if not hasattr(task, "error_hist"):
                 continue
 
             errors = np.asarray(task.error_hist)
@@ -56,7 +57,7 @@ class TorqueControllerQP(TorqueController):
         robot,
         tasks,
     ):
-        super().__init__(robot,tasks)
+        super().__init__(robot, tasks)
 
     def compute_control_torque(self):
         """function to compute the control torques for the task with the qp
@@ -131,7 +132,7 @@ class TorqueControllerTraditional(TorqueController):
         robot,
         tasks,
     ):
-        super().__init__(robot,tasks)
+        super().__init__(robot, tasks)
 
     def compute_control_torque(self):
         """function to compute the control torques for the task with traditional nullspace conntrol approach
@@ -150,7 +151,7 @@ class TorqueControllerTraditional(TorqueController):
         n = M.shape[0]
 
         # define tau with gravity+coriolis compensation
-        tau_des = h
+        tau_des = np.zeros(n)
 
         # nullspace projector N
         N = np.eye(n)
@@ -159,26 +160,21 @@ class TorqueControllerTraditional(TorqueController):
 
             # get task Jacobian and desired force
             J, f = task.update(state)
+            tau_task = J.T @ f
 
             # project task into nullspace
-            J_bar = J @ N
+            J_proj = J @ N
 
             # calculate dynamically consistent pseudoinverse
-            J_bar_pinv = (
-                M_inv
-                @ J_bar.T
-                @ np.linalg.pinv(J_bar @ M_inv @ J_bar.T)
-            )
+            J_bar = M_inv @ J_proj.T @ np.linalg.pinv(J_proj @ M_inv @ J_proj.T)
 
             # add current task torque
-            tau_des += N.T @ J.T @ f
+            tau_des += N.T @ tau_task
 
             # update nullspace projector
-            N = N @ (
-                np.eye(n)
-                - J_bar_pinv @ J_bar
-            )
+            N = N @ (np.eye(n) - J_bar @ J_proj)
+
+        # compensate nonlinear terms
+        tau_des += h
 
         return tau_des
-
-    

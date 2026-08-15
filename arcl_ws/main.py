@@ -60,8 +60,8 @@ def main():
     time.sleep(2)
 
     # create controller object
-    controller = TorqueControllerQP(robot=robot, tasks=tasks)
-    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
+    # controller = TorqueControllerQP(robot=robot, tasks=tasks)
+    controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
     try:
@@ -78,6 +78,7 @@ def main():
     except (gs.GenesisException, KeyboardInterrupt):
         # plot cartesian position error dynamics
         controller.plot_cartesian_pos_errors(dt=dt)
+
 
 if __name__ == "__main__":
     main()

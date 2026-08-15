@@ -336,7 +336,7 @@ class HorizontalPlaneTask:
         )
 
         # save stuff for plotting
-        self.error_hist.append([0,0,pos_error_z])
+        self.error_hist.append([0, 0, pos_error_z])
 
         return J, np.atleast_1d(f_des)
 
@@ -406,5 +406,3 @@ class PointSequenceTask:
         self.error_hist.append(error)
 
         return J, f_des
-
-
