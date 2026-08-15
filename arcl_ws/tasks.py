@@ -2,6 +2,7 @@ import numpy as np
 import pinocchio as pin
 import genesis as gs
 
+
 class SphereTask:
     """Use virtual joint to constrain the end effector to a sphere of specified radius around a specified point."""
 
@@ -26,7 +27,7 @@ class SphereTask:
         )
         self.model_data = self.model.createData()
 
-        # add visualization     
+        # add visualization
         scene.add_entity(
             gs.morphs.Sphere(
                 pos=center,
@@ -44,7 +45,7 @@ class SphereTask:
 
         q = state["q"]
         v = state["q_dot"]
-        
+
         pin.forwardKinematics(self.model, self.model_data, q, v)
         pin.updateFramePlacements(self.model, self.model_data)
         pin.computeJointJacobians(self.model, self.model_data, q)
@@ -76,7 +77,7 @@ class CylinderTask:
 
         self.model = robot.pin_robot_model.copy()
 
-        assert len(center)==2 # (x,y)
+        assert len(center) == 2  # (x,y)
         self.center = center
 
         # create virtual joint link
@@ -93,7 +94,7 @@ class CylinderTask:
         )
         self.model_data = self.model.createData()
 
-        # add visualization     
+        # add visualization
         scene.add_entity(
             gs.morphs.Cylinder(
                 pos=np.array([center[0], center[1], 0]),
@@ -112,7 +113,7 @@ class CylinderTask:
 
         q = state["q"]
         v = state["q_dot"]
-        
+
         pin.forwardKinematics(self.model, self.model_data, q, v)
         pin.updateFramePlacements(self.model, self.model_data)
         pin.computeJointJacobians(self.model, self.model_data, q)
@@ -138,21 +139,23 @@ class CylinderTask:
         error_z = -z[2]
         J_angular = J6[3:, :]
         ez = np.array([0.0, 0.0, 1.0])
-        z_dot_jacobian = (
-            ez @ (-pin.skew(z)) @ J_angular
-        )
+        z_dot_jacobian = ez @ (-pin.skew(z)) @ J_angular
         velocity_z = z_dot_jacobian @ v
         f_z = self.K * error_z - self.D * velocity_z
 
         # combine position and orientation
-        J = np.vstack([
-            J_xy,
-            z_dot_jacobian,
-        ])
-        f_des = np.concatenate([
-            f_xy,
-            np.atleast_1d(f_z),
-        ])
+        J = np.vstack(
+            [
+                J_xy,
+                z_dot_jacobian,
+            ]
+        )
+        f_des = np.concatenate(
+            [
+                f_xy,
+                np.atleast_1d(f_z),
+            ]
+        )
 
         return J, np.atleast_1d(f_des)
 
@@ -175,9 +178,7 @@ class AvoidJointLimitsTask:
         q = state["q"]
         q_dot = state["q_dot"]
 
-        grad_w = -(q - self.q_mid) / (
-            self.model.nv * self.q_range**2
-        )
+        grad_w = -(q - self.q_mid) / (self.model.nv * self.q_range**2)
 
         J_task = np.eye(self.model.nv)
         f_des = self.K * grad_w - self.D * q_dot
@@ -187,12 +188,13 @@ class AvoidJointLimitsTask:
 
 class MaximizeManipulabilityTask:
     """Maximize manipulability by maximizing yoshikawa measure."""
+
     def __init__(self, robot):
         self.model = robot.pin_robot_model
         self.data = robot.pin_data
         self.ee_id = robot.pin_ee_joint_id
         self.K = 2.0
-        self.D = .5
+        self.D = 0.5
 
     def update(self, state):
         # manipulator J and H
@@ -231,7 +233,12 @@ class PointToPointTask:
     """Move the ee periodically between two cartesian points."""
 
     def __init__(
-        self, p0, p1, period, scene, dt,
+        self,
+        p0,
+        p1,
+        period,
+        scene,
+        dt,
     ):
         self.K = 20.0
         self.D = 10.0
@@ -279,17 +286,13 @@ class PointToPointTask:
 
         error = target - p
 
-        f_des = (
-            self.K * error
-            + self.D * (target_velocity - velocity)
-        )
+        f_des = self.K * error + self.D * (target_velocity - velocity)
 
         return J, f_des
 
 
 class HorizontalPlaneTask:
-    """Constrain ee to a horizontal height and keep ee orthogonal ie pointing downwards
-    """
+    """Constrain ee to a horizontal height and keep ee orthogonal ie pointing downwards"""
 
     def __init__(
         self,
@@ -309,16 +312,20 @@ class HorizontalPlaneTask:
 
         Jz = -pin.skew(z) @ J6[3:, :]
 
-        J = np.vstack([
-            J6[2, :], 
-            Jz[0, :],
-            Jz[1, :], 
-        ])
+        J = np.vstack(
+            [
+                J6[2, :],
+                Jz[0, :],
+                Jz[1, :],
+            ]
+        )
 
-        f_des = np.array([
-            self.K * (self.height - p[2]) - self.D * (J6[2, :] @ v),
-            -self.K * z[0] - self.D * (Jz[0, :] @ v),
-            -self.K * z[1] - self.D * (Jz[1, :] @ v),
-        ])
+        f_des = np.array(
+            [
+                self.K * (self.height - p[2]) - self.D * (J6[2, :] @ v),
+                -self.K * z[0] - self.D * (Jz[0, :] @ v),
+                -self.K * z[1] - self.D * (Jz[1, :] @ v),
+            ]
+        )
 
         return J, np.atleast_1d(f_des)

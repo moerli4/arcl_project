@@ -7,7 +7,8 @@ import genesis as gs
 class Robot:
     def __init__(self, scene, robot_xml_path, ee_frame_name="attachment"):
         # add robot to the scene
-        self.genesis_robot_model = scene.add_entity(
+        self.scene = scene
+        self.genesis_robot_model = self.scene.add_entity(
             gs.morphs.MJCF(
                 file=robot_xml_path,
                 pos=(0.0, 0.0, 0.0),
@@ -31,32 +32,41 @@ class Robot:
         self.pin_robot_model = pin.buildModelsFromMJCF(filename=robot_xml_path)[0]
         self.pin_data = self.pin_robot_model.createData()
         self.pin_ee_frame_id = self.pin_robot_model.getFrameId(ee_frame_name)
-        self.pin_ee_joint_id = self.pin_robot_model.frames[self.pin_ee_frame_id].parentJoint
+        self.pin_ee_joint_id = self.pin_robot_model.frames[
+            self.pin_ee_frame_id
+        ].parentJoint
 
         # define end effector
-        self.genesis_end_effector = self.genesis_robot_model.get_link(name=ee_frame_name)
+        self.genesis_end_effector = self.genesis_robot_model.get_link(
+            name=ee_frame_name
+        )
         self.genesis_end_effector_idx = self.genesis_end_effector.idx_local
 
         # torque limits
         self.tau_max = self.pin_robot_model.effortLimit
         self.tau_min = -self.tau_max
 
-    def set_initial_qpos(self, qpos): 
+    def set_initial_qpos(self, qpos):
         self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
+        self.scene.step()
+
+    def set_initial_pos(self, pos, quat=None):
+        qpos = self.genesis_robot_model.inverse_kinematics(
+            link=self.genesis_end_effector, pos=pos, quat=quat
+        )
+        self.set_initial_qpos(qpos)
 
     def get_state(self):
         """Read the current robot state."""
 
         # ----------------- read state from genesis robot model -----------------
         q = (
-            self.genesis_robot_model
-            .get_dofs_position(self.robot_dofs_idx)
+            self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx)
             .cpu()
             .numpy()
         )
         q_dot = (
-            self.genesis_robot_model
-            .get_dofs_velocity(self.robot_dofs_idx)
+            self.genesis_robot_model.get_dofs_velocity(self.robot_dofs_idx)
             .cpu()
             .numpy()
         )
