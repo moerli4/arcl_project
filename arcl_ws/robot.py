@@ -3,75 +3,147 @@ import torch
 import numpy as np
 import genesis as gs
 
-class Robot():
-    def __init__(self, scene, robot_xml_path):
 
+class Robot:
+    def __init__(self, scene, robot_xml_path, ee_frame_name="attachment"):
         # add robot to the scene
-        self.genesis_robot_model = scene.add_entity(
-            gs.morphs.MJCF(file=robot_xml_path,
-            pos   = (0.0, 0.0, 0.0),
-            euler = (0, 0, 0),
+        self.scene = scene
+        self.genesis_robot_model = self.scene.add_entity(
+            gs.morphs.MJCF(
+                file=robot_xml_path,
+                pos=(0.0, 0.0, 0.0),
+                euler=(0, 0, 0),
             ),
         )
-        jnt_names = ['joint1','joint2','joint3','joint4','joint5','joint6','joint7']
-        self.robot_dofs_idx = [self.genesis_robot_model.get_joint(name).dof_idx_local for name in jnt_names]
+        jnt_names = [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+            "joint7",
+        ]
+        self.robot_dofs_idx = [
+            self.genesis_robot_model.get_joint(name).dof_idx_local for name in jnt_names
+        ]
 
         # create pinocchio robot model
         self.pin_robot_model = pin.buildModelsFromMJCF(filename=robot_xml_path)[0]
         self.pin_data = self.pin_robot_model.createData()
+        self.pin_ee_frame_id = self.pin_robot_model.getFrameId(ee_frame_name)
+        self.pin_ee_joint_id = self.pin_robot_model.frames[
+            self.pin_ee_frame_id
+        ].parentJoint
 
         # define end effector
-        self.end_effector = self.genesis_robot_model.get_link(name="link7")
-        self.end_effector_idx = self.end_effector.idx_local
+        self.genesis_end_effector = self.genesis_robot_model.get_link(
+            name=ee_frame_name
+        )
+        self.genesis_end_effector_idx = self.genesis_end_effector.idx_local
+
+        # torque limits
+        self.tau_max = self.pin_robot_model.effortLimit
+        self.tau_min = -self.tau_max
+
+    def set_initial_qpos(self, qpos):
+        self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
+        self.scene.step()
+
+    def set_initial_pos(self, pos, quat=None):
+        qpos = self.genesis_robot_model.inverse_kinematics(
+            link=self.genesis_end_effector, pos=pos, quat=quat
+        )
+        self.set_initial_qpos(qpos)
 
     def get_state(self):
         """Read the current robot state."""
 
-        # read state from genesis robot model
-        q = self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx)
-        q_dot = self.genesis_robot_model.get_dofs_velocity(self.robot_dofs_idx)
-        J = self.genesis_robot_model.get_jacobian(link=self.end_effector)
-        x = self.end_effector.get_pos()
-        x_dot = self.end_effector.get_vel()
-        f_ext_ee = self.genesis_robot_model.get_links_net_contact_force()[self.end_effector_idx]
+        # ----------------- read state from genesis robot model -----------------
+        q = (
+            self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx)
+            .cpu()
+            .numpy()
+        )
+        q_dot = (
+            self.genesis_robot_model.get_dofs_velocity(self.robot_dofs_idx)
+            .cpu()
+            .numpy()
+        )
 
-        # calculate dynamics from pinocchio robot model
-        q_np = q.detach().cpu().numpy().astype(np.float64).reshape(-1)
-        q_dot_np = q_dot.detach().cpu().numpy().astype(np.float64).reshape(-1)
+        # -------------- use pinocchio for the rest --------------
+        # kinematics
+        pin.forwardKinematics(
+            self.pin_robot_model,
+            self.pin_data,
+            q,
+            q_dot,
+        )
+        pin.updateFramePlacements(
+            self.pin_robot_model,
+            self.pin_data,
+        )
+
+        pin.computeJointKinematicHessians(
+            self.pin_robot_model,
+            self.pin_data,
+            q,
+        )
+
+        # ee frame pose and velocity
+        oM_ee = self.pin_data.oMf[self.pin_ee_frame_id]
+
+        ee_velocity = pin.getFrameVelocity(
+            self.pin_robot_model,
+            self.pin_data,
+            self.pin_ee_frame_id,
+            pin.LOCAL_WORLD_ALIGNED,
+        )
+
+        x = oM_ee.translation.copy()
+        ee_rotation = oM_ee.rotation.copy()
+        x_dot = ee_velocity.linear.copy()
+        quaternion = pin.Quaternion(ee_rotation).coeffs().copy()
+
+        # jacobian
+        J = pin.getFrameJacobian(
+            self.pin_robot_model,
+            self.pin_data,
+            self.pin_ee_frame_id,
+            pin.LOCAL_WORLD_ALIGNED,
+        ).copy()
+
+        # dynamics
         M = pin.crba(
             self.pin_robot_model,
             self.pin_data,
-            q_np,
+            q,
         )
+
         h = pin.nonLinearEffects(
             self.pin_robot_model,
             self.pin_data,
-            q_np,
-            q_dot_np,
+            q,
+            q_dot,
         )
-        g = pin.computeGeneralizedGravity(
-            self.pin_robot_model,
-            self.pin_data,
-            q_np,
-        )
-        C = h - g
 
         return {
             "q": q,
             "q_dot": q_dot,
             "J": J,
             "x": x,
+            "ee_rotation": ee_rotation,
             "x_dot": x_dot,
-            "f_ext_ee": f_ext_ee,
-            "M": torch.from_numpy(M).to(device=q.device, dtype=q.dtype),
-            "C": torch.from_numpy(C).to(device=q.device, dtype=q.dtype),
-            "g": torch.from_numpy(g).to(device=q.device, dtype=q.dtype),
+            "quaternion": quaternion,
+            "M": M,
+            "h": h,
         }
 
     def command_torque(self, tau_cmd):
         """Send torque command to the simulated robot."""
+        tau_cmd = torch.from_numpy(tau_cmd).float()
 
         self.genesis_robot_model.control_dofs_force(
-                tau_cmd,
-                self.robot_dofs_idx,
-            )
+            tau_cmd,
+            self.robot_dofs_idx,
+        )
