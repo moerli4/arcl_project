@@ -1,6 +1,6 @@
 import numpy as np
 import cvxpy as cp
-
+import matplotlib.pyplot as plt
 
 class TorqueController:
     def __init__(
@@ -9,12 +9,57 @@ class TorqueController:
         tasks,
     ):
         self.robot = robot
-
-        # define tasks in order of priority
         self.tasks = tasks
 
     def compute_control_torque(self):
-        """function to compute the control torques for the task
+        J, f_des = None, None 
+        return J, f_des
+
+    def plot_cartesian_pos_errors(self, dt):
+        fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+
+        for i, task in enumerate(self.tasks):
+            if not hasattr(task,"error_hist"):
+                continue
+
+            errors = np.asarray(task.error_hist)
+            time = np.arange(1, len(errors) + 1) * dt
+
+            # x, y, z errors
+            ax[0].plot(time, errors[:, 0], label=f"Task {i} - x")
+            ax[0].plot(time, errors[:, 1], label=f"Task {i} - y", linestyle="--")
+            ax[0].plot(time, errors[:, 2], label=f"Task {i} - z", linestyle=":")
+
+            # Error norm
+            error_norm = np.linalg.norm(errors, axis=1)
+            ax[1].plot(time, error_norm, label=f"Task {i}")
+
+        ax[0].axhline(0.0, linestyle="--", linewidth=0.8)
+        ax[0].set_ylabel("Position error [m]")
+        ax[0].set_title("Cartesian Position Errors")
+        ax[0].grid(True)
+        ax[0].legend()
+
+        ax[1].set_xlabel("Time [s]")
+        ax[1].set_ylabel(r"$\|e\|$ [m]")
+        ax[1].set_title("Cartesian Position Error Norm")
+        ax[1].grid(True)
+        ax[1].legend()
+
+        plt.tight_layout()
+        plt.show()
+
+
+class TorqueControllerQP(TorqueController):
+    def __init__(
+        self,
+        robot,
+        tasks,
+    ):
+        super().__init__(robot,tasks)
+
+    def compute_control_torque(self):
+        """function to compute the control torques for the task with the qp
 
         Returns:
             numpy array: desired control torques
@@ -78,3 +123,62 @@ class TorqueController:
         tau_d = tau_opt + h
 
         return tau_d
+
+
+class TorqueControllerTraditional(TorqueController):
+    def __init__(
+        self,
+        robot,
+        tasks,
+    ):
+        super().__init__(robot,tasks)
+
+    def compute_control_torque(self):
+        """function to compute the control torques for the task with traditional nullspace conntrol approach
+
+        Returns:
+            numpy array: desired control torques
+        """
+
+        # retrieve state
+        state = self.robot.get_state()
+
+        M = state["M"]
+        h = state["h"]
+
+        M_inv = np.linalg.inv(M)
+        n = M.shape[0]
+
+        # define tau with gravity+coriolis compensation
+        tau_des = h
+
+        # nullspace projector N
+        N = np.eye(n)
+
+        for task in self.tasks:
+
+            # get task Jacobian and desired force
+            J, f = task.update(state)
+
+            # project task into nullspace
+            J_bar = J @ N
+
+            # calculate dynamically consistent pseudoinverse
+            J_bar_pinv = (
+                M_inv
+                @ J_bar.T
+                @ np.linalg.pinv(J_bar @ M_inv @ J_bar.T)
+            )
+
+            # add current task torque
+            tau_des += N.T @ J.T @ f
+
+            # update nullspace projector
+            N = N @ (
+                np.eye(n)
+                - J_bar_pinv @ J_bar
+            )
+
+        return tau_des
+
+    

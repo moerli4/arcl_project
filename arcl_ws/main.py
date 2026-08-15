@@ -1,5 +1,5 @@
 import genesis as gs
-from controller import TorqueController
+from controller import TorqueControllerQP, TorqueControllerTraditional
 from tasks import *
 from robot import Robot
 from pathlib import Path
@@ -35,11 +35,20 @@ def main():
     )
 
     # define control objectives
+    p0 = (0.1, 0.5, 0.2)
+    p1 = (0.5, 0.5, 0.2)
+    p2 = (0.5, 0.1, 0.4)
     tasks = [
         # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
         # CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
         # PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
         HorizontalPlaneTask(height=0.2),
+        PointSequenceTask(
+            points=[p0, p1, p2],
+            segment_time=10.0,
+            scene=scene,
+            dt=dt,
+        ),
         MaximizeManipulabilityTask(robot=robot),
     ]
 
@@ -47,25 +56,28 @@ def main():
     scene.build()
 
     # set initial configuration
-    robot.set_initial_pos(pos=(0.4, 0.4, 0.2), quat=(0, 1, 0, 0))
+    robot.set_initial_pos(pos=p0, quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    controller = TorqueController(robot=robot, tasks=tasks)
+    controller = TorqueControllerQP(robot=robot, tasks=tasks)
+    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
-    while True:
-        # get control torque
-        control_torque = controller.compute_control_torque()
+    try:
+        while True:
+            # get control torque
+            control_torque = controller.compute_control_torque()
 
-        # command control torque
-        robot.command_torque(tau_cmd=control_torque)
+            # command control torque
+            robot.command_torque(tau_cmd=control_torque)
 
-        print(robot.get_state()["q"])
+            # step the simulation
+            scene.step()
 
-        # step the simulation
-        scene.step()
-
+    except (gs.GenesisException, KeyboardInterrupt):
+        # plot cartesian position error dynamics
+        controller.plot_cartesian_pos_errors(dt=dt)
 
 if __name__ == "__main__":
     main()

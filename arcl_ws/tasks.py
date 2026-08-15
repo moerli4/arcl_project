@@ -1,4 +1,5 @@
 import numpy as np
+
 import pinocchio as pin
 import genesis as gs
 
@@ -193,8 +194,8 @@ class MaximizeManipulabilityTask:
         self.model = robot.pin_robot_model
         self.data = robot.pin_data
         self.ee_id = robot.pin_ee_joint_id
-        self.K = 2.0
-        self.D = 0.5
+        self.K = 1.0
+        self.D = 0.2
 
     def update(self, state):
         # manipulator J and H
@@ -303,6 +304,8 @@ class HorizontalPlaneTask:
 
         self.height = height
 
+        self.error_hist = []
+
     def update(self, state):
         v = state["q_dot"]
         p = state["x"]
@@ -320,12 +323,88 @@ class HorizontalPlaneTask:
             ]
         )
 
+        # position error
+        pos_error_z = self.height - p[2]
+
+        # compose desired force from position and orientation error
         f_des = np.array(
             [
-                self.K * (self.height - p[2]) - self.D * (J6[2, :] @ v),
+                self.K * pos_error_z - self.D * (J6[2, :] @ v),
                 -self.K * z[0] - self.D * (Jz[0, :] @ v),
                 -self.K * z[1] - self.D * (Jz[1, :] @ v),
             ]
         )
 
+        # save stuff for plotting
+        self.error_hist.append([0,0,pos_error_z])
+
         return J, np.atleast_1d(f_des)
+
+
+class PointSequenceTask:
+    """move ee through trajectory defined by waypoint sequence"""
+
+    def __init__(self, points, segment_time, scene, dt):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.points = np.asarray(points, dtype=float)
+        self.segment_time = segment_time
+
+        self.time = 0.0
+        self.dt = dt
+
+        for p in self.points:
+            scene.add_entity(
+                gs.morphs.Sphere(
+                    pos=p,
+                    radius=0.03,
+                    fixed=True,
+                    collision=False,
+                    visualization=True,
+                ),
+                surface=gs.surfaces.Default(
+                    color=(0.0, 1.0, 0.0, 0.5),
+                ),
+            )
+
+        self.error_hist = []
+
+    def update(self, state):
+        self.time += self.dt
+
+        p = state["x"]
+        v = state["q_dot"]
+
+        J = state["J"][:3, :]
+        velocity = J @ v
+
+        # retrieve current segment
+        segment = min(
+            int(self.time / self.segment_time),
+            len(self.points) - 2,
+        )
+
+        # find target ee pos and vel
+        s = (self.time - segment * self.segment_time) / self.segment_time
+        s = min(s, 1.0)
+        p0 = self.points[segment]
+        p1 = self.points[segment + 1]
+        target = p0 + s * (p1 - p0)
+        target_velocity = (p1 - p0) / self.segment_time
+
+        # hold final point
+        if self.time >= (len(self.points) - 1) * self.segment_time:
+            target = self.points[-1]
+            target_velocity = np.zeros(3)
+
+        # cartesian pd
+        error = target - p
+        f_des = self.K * error + self.D * (target_velocity - velocity)
+
+        # save stuff for plotting
+        self.error_hist.append(error)
+
+        return J, f_des
+
+
