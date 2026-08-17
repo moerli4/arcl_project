@@ -42,14 +42,22 @@ def main():
         # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
         # CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
         # PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
-        HorizontalPlaneTask(height=0.2),
-        PointSequenceTask(
-            points=[p0, p1, p2],
-            segment_time=10.0,
-            scene=scene,
+        # HorizontalPlaneTask(height=0.2),
+        XPositionTask(x_des=0.5),
+        YPositionTask(y_des=0.5),
+        ZSinusoidalTask(
+            z_center=0.4,
+            amplitude=0.15,
+            frequency=0.1,
             dt=dt,
         ),
-        MaximizeManipulabilityTask(robot=robot),
+        # PointSequenceTask(
+        #     points=[p0, p1, p2],
+        #     segment_time=10.0,
+        #     scene=scene,
+        #     dt=dt,
+        # ),
+        # MaximizeManipulabilityTask(robot=robot),
     ]
 
     # build scene
@@ -60,8 +68,8 @@ def main():
     time.sleep(2)
 
     # create controller object
-    # controller = TorqueControllerQP(robot=robot, tasks=tasks)
-    controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
+    controller = TorqueControllerQP(robot=robot, tasks=tasks)
+    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
     try:

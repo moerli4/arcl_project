@@ -118,7 +118,7 @@ class TorqueControllerQP(TorqueController):
             J_task_history[i] = J_i
 
         # extract optimal tau
-        tau_opt = tau_opt_history[-1]
+        tau_opt = tau_i.value
 
         # Calculate desired torque with coriolis and gravity compensation (Equation 20)
         tau_d = tau_opt + h
