@@ -5,12 +5,15 @@ from robot import Robot
 from pathlib import Path
 import time
 
+# use builtin panda 7dof robot with no hand
 assets_dir = Path(gs.__file__).parent / "assets"
 robot_xml_path = (
     assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
-)  # use builtin panda 7dof robot with no hand
-dt = 0.01
+)
 
+# simulation parameters
+dt = 0.01
+T = 5
 
 def main():
     # initialize genesis
@@ -67,7 +70,7 @@ def main():
     scene.build()
 
     # set initial configuration
-    robot.read_torque_limits()
+    robot.set_torque_limits()
     robot.set_initial_pos(pos=p0, quat=(0, 1, 0, 0))
     time.sleep(2)
 
@@ -76,20 +79,22 @@ def main():
     # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
-    try:
-        while True:
-            # get control torque
-            control_torque = controller.compute_control_torque()
+    t=0
+    while t<=T:
+        # get control torque
+        control_torque = controller.compute_control_torque()
 
-            # command control torque
-            robot.command_torque(tau_cmd=control_torque)
+        # command control torque
+        robot.command_torque(tau_cmd=control_torque)
 
-            # step the simulation
-            scene.step()
+        # step the simulation
+        scene.step()
 
-    except (gs.GenesisException, KeyboardInterrupt):
-        # plot cartesian position error dynamics
-        controller.plot_cartesian_pos_errors(dt=dt)
+        # step time
+        t+=dt
+
+    # plot cartesian position error dynamics
+    controller.plot_cartesian_pos_errors(dt=dt)
 
 
 if __name__ == "__main__":

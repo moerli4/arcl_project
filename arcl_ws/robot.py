@@ -45,12 +45,12 @@ class Robot:
         # torque limits
         self.tau_min, self.tau_max = None, None
 
-    def read_torque_limits(self):
+    def set_torque_limits(self):
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
-        self.tau_min = -np.ones_like(tau_min.cpu().numpy())*10
-        self.tau_max = np.ones_like(tau_max.cpu().numpy())*10
+        self.tau_min = -np.ones_like(tau_min.cpu().numpy())*20
+        self.tau_max = np.ones_like(tau_max.cpu().numpy())*20
         print("tau_min:\t", self.tau_min)
         print("tau_min:\t", self.tau_max)
     
