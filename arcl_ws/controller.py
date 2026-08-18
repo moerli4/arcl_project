@@ -18,7 +18,7 @@ class TorqueController:
         return J, f_des
 
     def plot_cartesian_pos_errors(self, dt):
-        fig, ax = plt.subplots(3, 1, figsize=(14, 7), sharex=True)
+        fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
         for i, task in enumerate(self.tasks):
             if not hasattr(task, "error_hist"):
@@ -28,43 +28,35 @@ class TorqueController:
             time = np.arange(1, len(errors) + 1) * dt
 
             # x, y, z errors
-            ax[0].plot(time, errors[:, 0], label=f"Task {i} - x")
-            ax[0].plot(time, errors[:, 1], label=f"Task {i} - y", linestyle="--")
-            ax[0].plot(time, errors[:, 2], label=f"Task {i} - z", linestyle=":")
-
-            # Error norm
-            error_norm = np.linalg.norm(errors, axis=1)
-            ax[1].plot(time, error_norm, label=f"Task {i}")
+            labels = ["x", "y", "z"]
+            for j in range(3):
+                if not np.allclose(errors[:, j], 0.0):
+                    ax[0].plot(
+                        time,
+                        errors[:, j],
+                        label=f"Task {i} - {labels[j]}",
+                    )
 
         # Control Torque
         tau = np.array(self.tau_des_hist)
         for i in range(tau.shape[1]):
-            ax[2].plot(
+            ax[1].plot(
                 time,
                 tau[:, i],
-                label=f"Joint {i + 1}",
             )
-        ax[2].set_ylabel("Control Torque [Nm]")
-        ax[2].legend()
+        ax[1].set_ylabel("Control Torque [Nm]")
 
         # labels etc
-        ax[0].axhline(0.0, linestyle="--", linewidth=0.8)
+        ax[0].set_xlabel("Time [s]")
         ax[0].set_ylabel("Position error [m]")
         ax[0].set_title("Cartesian Position Errors")
         ax[0].grid(True)
-        ax[0].legend()
+        ax[0].legend(loc="upper right")
 
         ax[1].set_xlabel("Time [s]")
-        ax[1].set_ylabel(r"$\|e\|$ [m]")
-        ax[1].set_title("Cartesian Position Error Norm")
+        ax[1].set_ylabel(r"$\tau$ [Nm]")
+        ax[1].set_title("Control Torque")
         ax[1].grid(True)
-        ax[1].legend()
-
-        ax[2].set_xlabel("Time [s]")
-        ax[2].set_ylabel(r"$\|tau\|$")
-        ax[2].set_title("Control Torque")
-        ax[2].grid(True)
-        ax[2].legend()
 
         plt.tight_layout()
         plt.show()
