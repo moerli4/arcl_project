@@ -7,13 +7,12 @@ import time
 
 # use builtin panda 7dof robot with no hand
 assets_dir = Path(gs.__file__).parent / "assets"
-robot_xml_path = (
-    assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
-)
+robot_xml_path = assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
 
 # simulation parameters
 dt = 0.01
 T = 5
+
 
 def main():
     # initialize genesis
@@ -38,21 +37,7 @@ def main():
     )
 
     # define control objectives
-    p0 = (0.1, 0.5, 0.2)
-    p1 = (0.5, 0.5, 0.2)
-    p2 = (0.5, 0.1, 0.4)
     tasks = [
-        # SphereTask(robot=robot,radius=.2,center=(.4,.4,.4), scene=scene),
-        # CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
-        # PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
-        # HorizontalPlaneTask(height=0.2),
-        # PointSequenceTask(
-        #     points=[p0, p1, p2],
-        #     segment_time=10.0,
-        #     scene=scene,
-        #     dt=dt,
-        # ),
-
         XPositionTask(x_des=0.4),
         YPositionTask(y_des=0.4),
         ZSinusoidalTask(
@@ -61,7 +46,6 @@ def main():
             frequency=0.1,
             dt=dt,
         ),
-
         # MaximizeManipulabilityTask(robot=robot),
         # AvoidJointLimitsTask(robot=robot),
     ]
@@ -71,7 +55,7 @@ def main():
 
     # set initial configuration
     robot.set_torque_limits()
-    robot.set_initial_pos(pos=p0, quat=(0, 1, 0, 0))
+    robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
@@ -79,8 +63,8 @@ def main():
     # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
-    t=0
-    while t<=T:
+    t = 0
+    while t <= T:
         # get control torque
         control_torque = controller.compute_control_torque()
 
@@ -91,7 +75,7 @@ def main():
         scene.step()
 
         # step time
-        t+=dt
+        t += dt
 
     # plot cartesian position error dynamics
     controller.plot_cartesian_pos_errors(dt=dt)

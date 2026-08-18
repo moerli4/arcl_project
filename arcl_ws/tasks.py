@@ -496,17 +496,10 @@ class ZSinusoidalTask:
         omega = 2.0 * np.pi * self.frequency
 
         # Desired z position
-        z_des = (
-            self.z_center
-            + self.amplitude * np.sin(omega * self.time)
-        )
+        z_des = self.z_center + self.amplitude * np.sin(omega * self.time)
 
         # Desired z velocity
-        z_dot_des = (
-            self.amplitude
-            * omega
-            * np.cos(omega * self.time)
-        )
+        z_dot_des = self.amplitude * omega * np.cos(omega * self.time)
 
         # z translational Jacobian
         J = J6[2:3, :]
@@ -515,10 +508,7 @@ class ZSinusoidalTask:
 
         error = z_des - p[2]
 
-        f_des = (
-            self.K * error
-            + self.D * (z_dot_des - z_dot)
-        )
+        f_des = self.K * error + self.D * (z_dot_des - z_dot)
 
         self.error_hist.append([0.0, 0.0, error])
         self.desired_position_hist.append(z_des)

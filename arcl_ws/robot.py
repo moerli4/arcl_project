@@ -49,11 +49,11 @@ class Robot:
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
-        self.tau_min = -np.ones_like(tau_min.cpu().numpy())*20
-        self.tau_max = np.ones_like(tau_max.cpu().numpy())*20
+        self.tau_min = -np.ones_like(tau_min.cpu().numpy()) * 20
+        self.tau_max = np.ones_like(tau_max.cpu().numpy()) * 20
         print("tau_min:\t", self.tau_min)
         print("tau_min:\t", self.tau_max)
-    
+
     def set_initial_qpos(self, qpos):
         # set robot initial q
         self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
