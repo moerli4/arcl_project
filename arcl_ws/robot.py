@@ -48,14 +48,23 @@ class Robot:
         # torque limits
         self.tau_min, self.tau_max = None, None
 
-    def set_torque_limits(self):
+    def set_torque_limits(self,value=None):
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
-        self.tau_min = -np.ones_like(tau_min.cpu().numpy()) * 20
-        self.tau_max = np.ones_like(tau_max.cpu().numpy()) * 20
+
+        tau_min = tau_min.cpu().numpy()
+        tau_max = tau_max.cpu().numpy()
+
+        if value is not None:
+            self.tau_min = np.full_like(tau_min, -value)
+            self.tau_max = np.full_like(tau_max, value)
+        else:
+            self.tau_min = tau_min
+            self.tau_max = tau_max
+
         print("tau_min:\t", self.tau_min)
-        print("tau_min:\t", self.tau_max)
+        print("tau_max:\t", self.tau_max)
 
     def set_initial_qpos(self, qpos):
         # set robot initial q

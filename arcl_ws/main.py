@@ -11,7 +11,7 @@ robot_xml_path = assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
 
 # simulation parameters
 dt = 0.01
-T = 10
+T = 5
 
 
 def main():
@@ -46,6 +46,15 @@ def main():
             frequency=0.1,
             dt=dt,
         ),
+
+        # HorizontalPlaneTask(height=0.2),
+        # PointSequenceTask(
+        #     points=[(0.1, 0.5, 0.2),(0.5, 0.5, 0.2),(0.5, 0.1, 0.4)],
+        #     segment_time=10.0,
+        #     scene=scene,
+        #     dt=dt,
+        # ),
+
         # MaximizeManipulabilityTask(robot=robot),
         # AvoidJointLimitsTask(robot=robot),
     ]
@@ -54,13 +63,13 @@ def main():
     scene.build()
 
     # set initial configuration
-    robot.set_torque_limits()
+    robot.set_torque_limits(value=1)
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    controller = TorqueControllerQP(robot=robot, tasks=tasks)
-    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
+    # controller = TorqueControllerQP(robot=robot, tasks=tasks)
+    controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
 
     # simulate
     t = 0

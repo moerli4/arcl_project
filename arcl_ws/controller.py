@@ -89,7 +89,6 @@ class TorqueControllerQP(TorqueController):
         state = self.robot.get_state()
 
         M = state["M"]
-        h = state["h"]
 
         M_inv = np.linalg.inv(M)
         n = M.shape[0]
@@ -130,7 +129,7 @@ class TorqueControllerQP(TorqueController):
 
             # solve for optimal tau 
             problem = cp.Problem(objective, constraints)
-            problem.solve()
+            problem.solve(verbose=True)
 
             # save the task jacobian and optimal tau
             tau_opt_history[i] = tau_i.value
@@ -164,12 +163,11 @@ class TorqueControllerTraditional(TorqueController):
         state = self.robot.get_state()
 
         M = state["M"]
-        h = state["h"]
 
         M_inv = np.linalg.inv(M)
         n = M.shape[0]
 
-        # define tau with gravity+coriolis compensation
+        # define tau
         tau_des = np.zeros(n)
 
         # nullspace projector N
