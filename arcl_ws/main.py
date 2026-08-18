@@ -43,27 +43,31 @@ def main():
         # CylinderTask(robot=robot,radius=.5,center=(.8,.8), scene=scene),
         # PointToPointTask(p0=(.4,.7,.4), p1=(.7,.4,.7), period=40, scene=scene, dt=dt),
         # HorizontalPlaneTask(height=0.2),
-        XPositionTask(x_des=0.5),
-        YPositionTask(y_des=0.5),
-        ZSinusoidalTask(
-            z_center=0.4,
-            amplitude=0.15,
-            frequency=0.1,
-            dt=dt,
-        ),
         # PointSequenceTask(
         #     points=[p0, p1, p2],
         #     segment_time=10.0,
         #     scene=scene,
         #     dt=dt,
         # ),
+
+        XPositionTask(x_des=0.4),
+        YPositionTask(y_des=0.4),
+        ZSinusoidalTask(
+            z_center=0.4,
+            amplitude=0.15,
+            frequency=0.1,
+            dt=dt,
+        ),
+
         # MaximizeManipulabilityTask(robot=robot),
+        # AvoidJointLimitsTask(robot=robot),
     ]
 
     # build scene
     scene.build()
 
     # set initial configuration
+    robot.read_torque_limits()
     robot.set_initial_pos(pos=p0, quat=(0, 1, 0, 0))
     time.sleep(2)
 

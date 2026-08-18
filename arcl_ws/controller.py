@@ -11,13 +11,14 @@ class TorqueController:
     ):
         self.robot = robot
         self.tasks = tasks
+        self.tau_des_hist = []
 
     def compute_control_torque(self):
         J, f_des = None, None
         return J, f_des
 
     def plot_cartesian_pos_errors(self, dt):
-        fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+        fig, ax = plt.subplots(3, 1, figsize=(14, 7), sharex=True)
 
         for i, task in enumerate(self.tasks):
             if not hasattr(task, "error_hist"):
@@ -35,6 +36,18 @@ class TorqueController:
             error_norm = np.linalg.norm(errors, axis=1)
             ax[1].plot(time, error_norm, label=f"Task {i}")
 
+        # Control Torque
+        tau = np.array(self.tau_des_hist)
+        for i in range(tau.shape[1]):
+            ax[2].plot(
+                time,
+                tau[:, i],
+                label=f"Joint {i + 1}",
+            )
+        ax[2].set_ylabel("Control Torque [Nm]")
+        ax[2].legend()
+
+        # labels etc
         ax[0].axhline(0.0, linestyle="--", linewidth=0.8)
         ax[0].set_ylabel("Position error [m]")
         ax[0].set_title("Cartesian Position Errors")
@@ -46,6 +59,12 @@ class TorqueController:
         ax[1].set_title("Cartesian Position Error Norm")
         ax[1].grid(True)
         ax[1].legend()
+
+        ax[2].set_xlabel("Time [s]")
+        ax[2].set_ylabel(r"$\|tau\|$")
+        ax[2].set_title("Control Torque")
+        ax[2].grid(True)
+        ax[2].legend()
 
         plt.tight_layout()
         plt.show()
@@ -121,9 +140,12 @@ class TorqueControllerQP(TorqueController):
         tau_opt = tau_i.value
 
         # Calculate desired torque with coriolis and gravity compensation (Equation 20)
-        tau_d = tau_opt + h
+        tau_opt += h
 
-        return tau_d
+        # save tau for plotting
+        self.tau_des_hist.append(tau_opt)
+
+        return tau_opt
 
 
 class TorqueControllerTraditional(TorqueController):
@@ -176,5 +198,11 @@ class TorqueControllerTraditional(TorqueController):
 
         # compensate nonlinear terms
         tau_des += h
+
+        # clip torques
+        tau_des = np.clip(tau_des, self.robot.tau_min, self.robot.tau_max)
+
+        # save tau for plotting
+        self.tau_des_hist.append(tau_des)
 
         return tau_des
