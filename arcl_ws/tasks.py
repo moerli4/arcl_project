@@ -406,3 +406,123 @@ class PointSequenceTask:
         self.error_hist.append(error)
 
         return J, f_des
+
+
+class XPositionTask:
+    """Control the end-effector x position."""
+
+    def __init__(self, x_des):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.x_des = x_des
+        self.error_hist = []
+
+    def update(self, state):
+        q_dot = state["q_dot"]
+        p = state["x"]
+        J6 = state["J"]
+
+        # x translational Jacobian
+        J = J6[0:1, :]
+
+        error = self.x_des - p[0]
+        velocity = J6[0, :] @ q_dot
+
+        f_des = self.K * error - self.D * velocity
+
+        self.error_hist.append([error, 0.0, 0.0])
+
+        return J, np.atleast_1d(f_des)
+
+
+class YPositionTask:
+    """Control the end-effector y position."""
+
+    def __init__(self, y_des):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.y_des = y_des
+        self.error_hist = []
+
+    def update(self, state):
+        q_dot = state["q_dot"]
+        p = state["x"]
+        J6 = state["J"]
+
+        # y translational Jacobian
+        J = J6[1:2, :]
+
+        error = self.y_des - p[1]
+        velocity = J6[1, :] @ q_dot
+
+        f_des = self.K * error - self.D * velocity
+
+        self.error_hist.append([0.0, error, 0.0])
+
+        return J, np.atleast_1d(f_des)
+
+
+class ZSinusoidalTask:
+    """Track a sinusoidal trajectory along the end-effector z axis."""
+
+    def __init__(
+        self,
+        z_center,
+        amplitude,
+        frequency,
+        dt,
+    ):
+        self.K = 20.0
+        self.D = 10.0
+
+        self.z_center = z_center
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.dt = dt
+
+        self.time = 0.0
+
+        self.error_hist = []
+        self.desired_position_hist = []
+
+    def update(self, state):
+        q_dot = state["q_dot"]
+        p = state["x"]
+        J6 = state["J"]
+
+        # Angular frequency
+        omega = 2.0 * np.pi * self.frequency
+
+        # Desired z position
+        z_des = (
+            self.z_center
+            + self.amplitude * np.sin(omega * self.time)
+        )
+
+        # Desired z velocity
+        z_dot_des = (
+            self.amplitude
+            * omega
+            * np.cos(omega * self.time)
+        )
+
+        # z translational Jacobian
+        J = J6[2:3, :]
+
+        z_dot = J6[2, :] @ q_dot
+
+        error = z_des - p[2]
+
+        f_des = (
+            self.K * error
+            + self.D * (z_dot_des - z_dot)
+        )
+
+        self.error_hist.append([0.0, 0.0, error])
+        self.desired_position_hist.append(z_des)
+
+        self.time += self.dt
+
+        return J, np.atleast_1d(f_des)

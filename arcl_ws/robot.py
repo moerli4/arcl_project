@@ -43,14 +43,24 @@ class Robot:
         self.genesis_end_effector_idx = self.genesis_end_effector.idx_local
 
         # torque limits
-        self.tau_max = self.pin_robot_model.effortLimit
-        self.tau_min = -self.tau_max
+        self.tau_min, self.tau_max = None, None
 
+    def read_torque_limits(self):
+        tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
+            self.robot_dofs_idx
+        )
+        self.tau_min = -np.ones_like(tau_min.cpu().numpy())*10
+        self.tau_max = np.ones_like(tau_max.cpu().numpy())*10
+        print("tau_min:\t", self.tau_min)
+        print("tau_min:\t", self.tau_max)
+    
     def set_initial_qpos(self, qpos):
+        # set robot initial q
         self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
         self.scene.step()
 
     def set_initial_pos(self, pos, quat=None):
+        # set initial ee position
         qpos = self.genesis_robot_model.inverse_kinematics(
             link=self.genesis_end_effector, pos=pos, quat=quat
         )
@@ -119,6 +129,7 @@ class Robot:
             self.pin_data,
             q,
         )
+        M = np.triu(M) + np.triu(M, 1).T
 
         h = pin.nonLinearEffects(
             self.pin_robot_model,
