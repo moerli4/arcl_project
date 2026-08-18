@@ -11,7 +11,7 @@ robot_xml_path = assets_dir / "xml/franka_emika_panda/panda_nohand.xml"
 
 # simulation parameters
 dt = 0.01
-T = 5
+T = 10
 
 
 def main():

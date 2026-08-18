@@ -14,6 +14,9 @@ class Robot:
                 pos=(0.0, 0.0, 0.0),
                 euler=(0, 0, 0),
             ),
+            material=gs.materials.Rigid(
+                gravity_compensation=1.0,
+            ),
         )
         jnt_names = [
             "joint1",

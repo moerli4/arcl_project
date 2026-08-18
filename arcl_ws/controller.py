@@ -115,10 +115,10 @@ class TorqueControllerQP(TorqueController):
 
             constraints = []
 
-            # enforce robot torque limits with coriolis and gravity compensation (Equation 21)
+            # enforce robot torque limits (Equation 19)
             constraints = [
-                tau_i >= self.robot.tau_min - h,
-                tau_i <= self.robot.tau_max - h,
+                tau_i >= self.robot.tau_min,
+                tau_i <= self.robot.tau_max,
             ]
 
             # enforce all higher priority tasks as constraints (Equation 18)
@@ -128,7 +128,7 @@ class TorqueControllerQP(TorqueController):
 
                 constraints.append(J_j @ M_inv @ tau_j == J_j @ M_inv @ tau_i)
 
-            # solve for optimal tau
+            # solve for optimal tau 
             problem = cp.Problem(objective, constraints)
             problem.solve()
 
@@ -137,10 +137,7 @@ class TorqueControllerQP(TorqueController):
             J_task_history[i] = J_i
 
         # extract optimal tau
-        tau_opt = tau_i.value
-
-        # Calculate desired torque with coriolis and gravity compensation (Equation 20)
-        tau_opt += h
+        tau_opt = tau_opt_history[-1]
 
         # save tau for plotting
         self.tau_des_hist.append(tau_opt)
@@ -195,9 +192,6 @@ class TorqueControllerTraditional(TorqueController):
 
             # update nullspace projector
             N = N @ (np.eye(n) - J_bar @ J_proj)
-
-        # compensate nonlinear terms
-        tau_des += h
 
         # clip torques
         tau_des = np.clip(tau_des, self.robot.tau_min, self.robot.tau_max)
