@@ -1,7 +1,7 @@
 import numpy as np
 import cvxpy as cp
 import matplotlib.pyplot as plt
-
+from time import perf_counter
 
 class TorqueController:
     def __init__(
@@ -9,15 +9,41 @@ class TorqueController:
         robot,
         tasks,
     ):
+        # robot stuff
         self.robot = robot
         self.tasks = tasks
+
+        # plot stuff
         self.tau_des_hist = []
 
-    def compute_control_torque(self):
-        J, f_des = None, None
-        return J, f_des
+        # computation time parameters
+        self._total_time = 0.0
+        self._call_count = 0
+
+    def compute_control_torque(self, *args, **kwargs):
+        # wrapper for computation time benchmarking
+        start = perf_counter()
+
+        result = self._compute_control_torque(*args, **kwargs)
+
+        elapsed = perf_counter() - start
+        self._total_time += elapsed
+        self._call_count += 1
+
+        return result
+
+    @property
+    def average_time(self):
+        # returns average computation time benchmark as a class attribute
+        if self._call_count == 0:
+            return 0.0
+        return self._total_time / self._call_count
+
+    def _compute_control_torque(self, *args, **kwargs):
+        raise NotImplementedError
 
     def plot_cartesian_pos_errors(self, dt):
+        # function to plot error and torque
         fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
         for i, task in enumerate(self.tasks):
@@ -70,7 +96,7 @@ class TorqueControllerQP(TorqueController):
     ):
         super().__init__(robot, tasks)
 
-    def compute_control_torque(self):
+    def _compute_control_torque(self):
         """function to compute the control torques for the task with the qp
 
         Returns:
@@ -121,7 +147,7 @@ class TorqueControllerQP(TorqueController):
 
             # solve for optimal tau 
             problem = cp.Problem(objective, constraints)
-            problem.solve(verbose=True)
+            problem.solve(verbose=False)
 
             # save the task jacobian and optimal tau
             tau_opt_history[i] = tau_i.value
@@ -144,7 +170,7 @@ class TorqueControllerTraditional(TorqueController):
     ):
         super().__init__(robot, tasks)
 
-    def compute_control_torque(self):
+    def _compute_control_torque(self):
         """function to compute the control torques for the task with traditional nullspace conntrol approach
 
         Returns:

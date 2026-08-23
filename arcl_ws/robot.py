@@ -28,7 +28,7 @@ class Robot:
             "joint7",
         ]
         self.robot_dofs_idx = [
-            self.genesis_robot_model.get_joint(name).dof_idx_local for name in jnt_names
+            self.genesis_robot_model.get_joint(name).dofs_idx_local[0] for name in jnt_names
         ]
 
         # create pinocchio robot model

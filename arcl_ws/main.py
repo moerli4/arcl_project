@@ -20,7 +20,7 @@ def main():
 
     # create scene
     scene = gs.Scene(
-        show_viewer=True,
+        show_viewer=False,
         sim_options=gs.options.SimOptions(
             dt=dt,
             gravity=(0.0, 0.0, -9.81),
@@ -68,8 +68,8 @@ def main():
     time.sleep(2)
 
     # create controller object
-    # controller = TorqueControllerQP(robot=robot, tasks=tasks)
-    controller = TorqueControllerTraditional(robot=robot, tasks=tasks)
+    controller = TorqueControllerQP(robot=robot, tasks=tasks) # 22.5ms in first test run on my laptop
+    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
 
     # simulate
     t = 0
@@ -85,6 +85,9 @@ def main():
 
         # step time
         t += dt
+
+    # computation time benchmark
+    print(f"average controller computation time:\t{controller.average_time * 1000:.3f} ms")
 
     # plot cartesian position error dynamics
     controller.plot_cartesian_pos_errors(dt=dt)
