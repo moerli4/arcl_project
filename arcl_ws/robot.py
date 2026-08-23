@@ -50,22 +50,20 @@ class Robot:
         self.tau_min, self.tau_max = None, None
 
     def set_torque_limits(self, value=None):
+        # set torque limits, either read from robot model or set artifical limits
+        if value is not None:
+            self.tau_min = -np.array(value)
+            self.tau_max = np.array(value)
+            return np.array(value)
+
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
 
-        tau_min = tau_min.cpu().numpy()
-        tau_max = tau_max.cpu().numpy()
+        self.tau_max = tau_max.cpu().numpy()
+        self.tau_min = tau_min.cpu().numpy()
 
-        if value is not None:
-            self.tau_min = -np.array(value)
-            self.tau_max = np.array(value)
-        else:
-            self.tau_min = tau_min
-            self.tau_max = tau_max
-
-        print("tau_min:\t", self.tau_min)
-        print("tau_max:\t", self.tau_max)
+        return self.tau_max
 
     def set_initial_qpos(self, qpos):
         # set robot initial q

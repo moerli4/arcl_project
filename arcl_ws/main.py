@@ -53,7 +53,7 @@ def main():
     scene.build()
 
     # set initial configuration
-    robot.set_torque_limits() # value=[87. 87. 87. 87. 12. 12. 12.])
+    torque_limits = robot.set_torque_limits() # value=[87. 87. 87. 87. 12. 12. 12.])
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
@@ -82,7 +82,7 @@ def main():
     )
 
     # plot cartesian position error dynamics
-    controller.plot_cartesian_pos_errors(dt=dt)
+    controller.plot_cartesian_pos_errors(torque_limits=torque_limits,dt=dt)
 
 
 if __name__ == "__main__":

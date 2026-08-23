@@ -43,10 +43,11 @@ class TorqueController:
     def _compute_control_torque(self, *args, **kwargs):
         raise NotImplementedError
 
-    def plot_cartesian_pos_errors(self, dt):
+    def plot_cartesian_pos_errors(self, torque_limits, dt):
         # function to plot error and torque
         fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
+        # cartesian position error
         for i, task in enumerate(self.tasks):
             if not hasattr(task, "error_hist"):
                 continue
@@ -63,27 +64,27 @@ class TorqueController:
                         errors[:, j],
                         label=f"Task {i} - {labels[j]}",
                     )
-
-        # Control Torque
-        tau = np.array(self.tau_cmd_hist)
-        for i in range(tau.shape[1]):
-            ax[1].plot(
-                time,
-                tau[:, i],
-            )
-        ax[1].set_ylabel("Control Torque [Nm]")
-
-        # labels etc
         ax[0].set_xlabel("Time [s]")
         ax[0].set_ylabel("Position error [m]")
         ax[0].set_title("Cartesian Position Errors")
         ax[0].grid(True)
         ax[0].legend(loc="upper right")
 
-        ax[1].set_xlabel("Time [s]")
-        ax[1].set_ylabel(r"$\tau$ [Nm]")
-        ax[1].set_title("Control Torque")
-        ax[1].grid(True)
+        # Control Torque
+        tau = np.array(self.tau_cmd_hist)
+        torque_limits = np.asarray(torque_limits)
+        tau_normalized = tau / torque_limits[None, :]
+        for i in range(tau_normalized.shape[1]):
+            ax[1].plot(
+                time,
+                tau_normalized[:, i],
+                label=f"Joint {i + 1}",
+            )
+        ax[1].axhline(1.0, linestyle="--")
+        ax[1].axhline(-1.0, linestyle="--")
+        ax[1].set_ylabel(r"$\tau / \tau_{\max}$")
+        ax[1].set_title("Normalized Control Torque")
+        ax[1].legend(loc="upper right")
 
         plt.tight_layout()
         plt.show()
