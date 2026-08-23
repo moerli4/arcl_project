@@ -28,6 +28,8 @@ class SphereTask:
         )
         self.model_data = self.model.createData()
 
+        self.error_hist = []
+
         # add visualization
         scene.add_entity(
             gs.morphs.Sphere(
@@ -65,6 +67,8 @@ class SphereTask:
 
         error = self.center - position
         f_des = self.K * error - self.D * velocity
+
+        self.error_hist.append(error)
 
         return J, np.atleast_1d(f_des)
 

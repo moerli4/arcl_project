@@ -3,6 +3,7 @@ import cvxpy as cp
 import matplotlib.pyplot as plt
 from time import perf_counter
 
+
 class TorqueController:
     def __init__(
         self,
@@ -14,7 +15,7 @@ class TorqueController:
         self.tasks = tasks
 
         # plot stuff
-        self.tau_des_hist = []
+        self.tau_cmd_hist = []
 
         # computation time parameters
         self._total_time = 0.0
@@ -64,7 +65,7 @@ class TorqueController:
                     )
 
         # Control Torque
-        tau = np.array(self.tau_des_hist)
+        tau = np.array(self.tau_cmd_hist)
         for i in range(tau.shape[1]):
             ax[1].plot(
                 time,
@@ -107,6 +108,7 @@ class TorqueControllerQP(TorqueController):
         state = self.robot.get_state()
 
         M = state["M"]
+        h = state["h"]
 
         M_inv = np.linalg.inv(M)
         n = M.shape[0]
@@ -132,7 +134,7 @@ class TorqueControllerQP(TorqueController):
 
             constraints = []
 
-            # enforce robot torque limits (Equation 19)
+            # enforce robot torque limits (Equation 19/21)
             constraints = [
                 tau_i >= self.robot.tau_min,
                 tau_i <= self.robot.tau_max,
@@ -145,21 +147,26 @@ class TorqueControllerQP(TorqueController):
 
                 constraints.append(J_j @ M_inv @ tau_j == J_j @ M_inv @ tau_i)
 
-            # solve for optimal tau 
+            # solve for optimal tau
             problem = cp.Problem(objective, constraints)
             problem.solve(verbose=False)
+            if problem.status == cp.INFEASIBLE:
+                raise ValueError("Optimization problem is infeasible, try loosening torque limit constraints.")
 
             # save the task jacobian and optimal tau
             tau_opt_history[i] = tau_i.value
             J_task_history[i] = J_i
 
         # extract optimal tau
-        tau_opt = tau_opt_history[-1]
+        tau_motion = tau_opt_history[-1]
+
+        # compensate gravity and coriolis
+        tau_cmd = tau_motion + h
 
         # save tau for plotting
-        self.tau_des_hist.append(tau_opt)
+        self.tau_cmd_hist.append(tau_cmd)
 
-        return tau_opt
+        return tau_cmd
 
 
 class TorqueControllerTraditional(TorqueController):
@@ -181,12 +188,13 @@ class TorqueControllerTraditional(TorqueController):
         state = self.robot.get_state()
 
         M = state["M"]
+        h = state["h"]
 
         M_inv = np.linalg.inv(M)
         n = M.shape[0]
 
         # define tau
-        tau_des = np.zeros(n)
+        tau_motion = np.zeros(n)
 
         # nullspace projector N
         N = np.eye(n)
@@ -204,15 +212,18 @@ class TorqueControllerTraditional(TorqueController):
             J_bar = M_inv @ J_proj.T @ np.linalg.pinv(J_proj @ M_inv @ J_proj.T)
 
             # add current task torque
-            tau_des += N.T @ tau_task
+            tau_motion += N.T @ tau_task
 
             # update nullspace projector
             N = N @ (np.eye(n) - J_bar @ J_proj)
 
         # clip torques
-        tau_des = np.clip(tau_des, self.robot.tau_min, self.robot.tau_max)
+        tau_motion = np.clip(tau_motion, self.robot.tau_min, self.robot.tau_max)
+
+        # compensate gravity and coriolis
+        tau_cmd = tau_motion + h
 
         # save tau for plotting
-        self.tau_des_hist.append(tau_des)
+        self.tau_cmd_hist.append(tau_cmd)
 
-        return tau_des
+        return tau_cmd

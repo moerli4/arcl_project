@@ -38,38 +38,28 @@ def main():
 
     # define control objectives
     tasks = [
-        XPositionTask(x_des=0.4),
-        YPositionTask(y_des=0.4),
-        ZSinusoidalTask(
-            z_center=0.4,
-            amplitude=0.15,
-            frequency=0.1,
-            dt=dt,
-        ),
-
-        # HorizontalPlaneTask(height=0.2),
-        # PointSequenceTask(
-        #     points=[(0.1, 0.5, 0.2),(0.5, 0.5, 0.2),(0.5, 0.1, 0.4)],
-        #     segment_time=10.0,
-        #     scene=scene,
+        # XPositionTask(x_des=0.4),
+        # YPositionTask(y_des=0.4),
+        # ZSinusoidalTask(
+        #     z_center=0.4,
+        #     amplitude=0.15,
+        #     frequency=0.1,
         #     dt=dt,
         # ),
-
-        # MaximizeManipulabilityTask(robot=robot),
-        # AvoidJointLimitsTask(robot=robot),
+        SphereTask(robot,.2,(.5,.5,.5),scene)
     ]
 
     # build scene
     scene.build()
 
     # set initial configuration
-    robot.set_torque_limits(value=1)
+    robot.set_torque_limits(value=[1,]*7)
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    controller = TorqueControllerQP(robot=robot, tasks=tasks) # 22.5ms in first test run on my laptop
-    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
+    # controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
+    controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
 
     # simulate
     t = 0
@@ -87,7 +77,9 @@ def main():
         t += dt
 
     # computation time benchmark
-    print(f"average controller computation time:\t{controller.average_time * 1000:.3f} ms")
+    print(
+        f"average controller computation time:\t{controller.average_time * 1000:.3f} ms"
+    )
 
     # plot cartesian position error dynamics
     controller.plot_cartesian_pos_errors(dt=dt)

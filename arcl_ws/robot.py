@@ -15,7 +15,7 @@ class Robot:
                 euler=(0, 0, 0),
             ),
             material=gs.materials.Rigid(
-                gravity_compensation=1.0,
+                gravity_compensation=0.0,
             ),
         )
         jnt_names = [
@@ -28,7 +28,8 @@ class Robot:
             "joint7",
         ]
         self.robot_dofs_idx = [
-            self.genesis_robot_model.get_joint(name).dofs_idx_local[0] for name in jnt_names
+            self.genesis_robot_model.get_joint(name).dofs_idx_local[0]
+            for name in jnt_names
         ]
 
         # create pinocchio robot model
@@ -48,7 +49,7 @@ class Robot:
         # torque limits
         self.tau_min, self.tau_max = None, None
 
-    def set_torque_limits(self,value=None):
+    def set_torque_limits(self, value=None):
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
@@ -57,8 +58,8 @@ class Robot:
         tau_max = tau_max.cpu().numpy()
 
         if value is not None:
-            self.tau_min = np.full_like(tau_min, -value)
-            self.tau_max = np.full_like(tau_max, value)
+            self.tau_min = -np.array(value)
+            self.tau_max = np.array(value)
         else:
             self.tau_min = tau_min
             self.tau_max = tau_max
@@ -150,6 +151,8 @@ class Robot:
             q_dot,
         )
 
+        g = pin.computeGeneralizedGravity(self.pin_robot_model, self.pin_data, q)
+
         return {
             "q": q,
             "q_dot": q_dot,
@@ -160,6 +163,7 @@ class Robot:
             "quaternion": quaternion,
             "M": M,
             "h": h,
+            "g": g,
         }
 
     def command_torque(self, tau_cmd):
