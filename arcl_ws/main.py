@@ -38,28 +38,28 @@ def main():
 
     # define control objectives
     tasks = [
-        # XPositionTask(x_des=0.4),
-        # YPositionTask(y_des=0.4),
-        # ZSinusoidalTask(
-        #     z_center=0.4,
-        #     amplitude=0.15,
-        #     frequency=0.1,
-        #     dt=dt,
-        # ),
-        SphereTask(robot,.2,(.5,.5,.5),scene)
+        XPositionTask(x_des=0.4),
+        YPositionTask(y_des=0.4),
+        ZSinusoidalTask(
+            z_center=0.4,
+            amplitude=0.15,
+            frequency=0.1,
+            dt=dt,
+        ),
+        # SphereTask(robot,.2,(.5,.5,.5),scene)
     ]
 
     # build scene
     scene.build()
 
     # set initial configuration
-    robot.set_torque_limits(value=[1,]*7)
+    robot.set_torque_limits() # value=[87. 87. 87. 87. 12. 12. 12.])
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    # controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
-    controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
+    controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
+    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
 
     # simulate
     t = 0
