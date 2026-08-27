@@ -53,13 +53,13 @@ def main():
     scene.build()
 
     # set initial configuration
-    torque_limits = robot.set_torque_limits(value=[20, 20, 20, 20, 12, 12, 12])
+    _, torque_limits = robot.set_torque_limits(value=[.1, None, None, None, None, None, None])
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    # controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
-    controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
+    controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
+    # controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
 
     # simulate
     t = 0

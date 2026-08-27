@@ -49,21 +49,36 @@ class Robot:
         # torque limits
         self.tau_min, self.tau_max = None, None
 
-    def set_torque_limits(self, value=None):
-        # set torque limits, either read from robot model or set artifical limits
-        if value is not None:
-            self.tau_min = -np.array(value)
-            self.tau_max = np.array(value)
-            return np.array(value)
+    def set_torque_limits(self, value: list = []):
+        """
+        Set torque limits, uses default limits from genesis robot model if no value is passed
 
+        Args:
+            value: list of torque limits that override the default for specified joints
+                example: [10, 10, None, None, 5, None, None]
+
+        Returns:
+            tuple: (lower torque limits, upper torque limits)
+        """
+
+        # get default limits from genesis model
         tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
             self.robot_dofs_idx
         )
 
-        self.tau_max = tau_max.cpu().numpy()
-        self.tau_min = tau_min.cpu().numpy()
+        tau_min = tau_min.cpu().numpy()
+        tau_max = tau_max.cpu().numpy()
 
-        return self.tau_max
+        # override selected limits
+        for i, limit in enumerate(value):
+            if limit is not None:
+                tau_min[i] = -abs(limit)
+                tau_max[i] = abs(limit)
+
+        self.tau_min = tau_min
+        self.tau_max = tau_max
+
+        return tau_min, tau_max
 
     def set_initial_qpos(self, qpos):
         # set robot initial q
