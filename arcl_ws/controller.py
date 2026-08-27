@@ -218,11 +218,12 @@ class TorqueControllerTraditional(TorqueController):
             # update nullspace projector
             N = N @ (np.eye(n) - J_bar @ J_proj)
 
-        # clip torques
-        tau_motion = np.clip(tau_motion, self.robot.tau_min, self.robot.tau_max)
 
         # compensate gravity and coriolis
         tau_cmd = tau_motion + h
+
+        # clip torques
+        tau_cmd = np.clip(tau_cmd, self.robot.tau_min, self.robot.tau_max)
 
         # save tau for plotting
         self.tau_cmd_hist.append(tau_cmd)
