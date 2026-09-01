@@ -53,12 +53,16 @@ def main():
     scene.build()
 
     # set initial configuration
-    _, torque_limits = robot.set_torque_limits(value=[.1, None, None, None, None, None, None])
+    _, torque_limits = robot.set_torque_limits(
+        value=[0.1, None, None, None, None, None, None]
+    )
     robot.set_initial_pos(pos=(0.1, 0.5, 0.2), quat=(0, 1, 0, 0))
     time.sleep(2)
 
     # create controller object
-    controller = TorqueControllerQP(robot=robot, tasks=tasks)  # 22.5ms in first test run on my laptop
+    controller = TorqueControllerQP(
+        robot=robot, tasks=tasks
+    )  # 22.5ms in first test run on my laptop
     # controller = TorqueControllerTraditional(robot=robot, tasks=tasks) # 0.543ms in first test run on my laptop
 
     # simulate
@@ -82,7 +86,7 @@ def main():
     )
 
     # plot cartesian position error dynamics
-    controller.plot_cartesian_pos_errors(torque_limits=torque_limits,dt=dt)
+    controller.plot_cartesian_pos_errors(torque_limits=torque_limits, dt=dt)
 
 
 if __name__ == "__main__":

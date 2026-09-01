@@ -1,125 +1,31 @@
 import numpy as np
 import cvxpy as cp
-import matplotlib.pyplot as plt
-from time import perf_counter
-
 
 class TorqueController:
-    def __init__(
-        self,
-        robot,
-        tasks,
-    ):
-        # robot stuff
-        self.robot = robot
-        self.tasks = tasks
-
-        # plot stuff
-        self.tau_cmd_hist = []
-
-        # computation time parameters
-        self._total_time = 0.0
-        self._call_count = 0
+    def __init__(self):
+        pass
 
     def compute_control_torque(self, *args, **kwargs):
-        # wrapper for computation time benchmarking
-        start = perf_counter()
-
-        result = self._compute_control_torque(*args, **kwargs)
-
-        elapsed = perf_counter() - start
-        self._total_time += elapsed
-        self._call_count += 1
-
-        return result
-
-    @property
-    def average_time(self):
-        # returns average computation time benchmark as a class attribute
-        if self._call_count == 0:
-            return 0.0
-        return self._total_time / self._call_count
-
-    def _compute_control_torque(self, *args, **kwargs):
         raise NotImplementedError
-
-    def plot_cartesian_pos_errors(self, torque_limits, dt):
-        # function to plot error and torque
-        fig, ax = plt.subplots(3, 1, figsize=(15, 7), sharex=True)
-
-        # cartesian position error
-        for i, task in enumerate(self.tasks):
-            if not hasattr(task, "error_hist"):
-                continue
-
-            errors = np.asarray(task.error_hist)
-            time = np.arange(1, len(errors) + 1) * dt
-
-            # x, y, z errors
-            labels = ["x", "y", "z"]
-            for j in range(3):
-                if not np.allclose(errors[:, j], 0.0):
-                    ax[0].plot(
-                        time,
-                        errors[:, j],
-                        label=f"Task {i} - {labels[j]}",
-                    )
-        ax[0].set_xlabel("Time [s]")
-        ax[0].set_ylabel("Position error [m]")
-        ax[0].set_title("Cartesian Position Errors")
-        ax[0].grid(True)
-        ax[0].legend(loc="upper right")
-
-        # Control Torque
-        tau = np.array(self.tau_cmd_hist)
-        for i in range(tau.shape[1]):
-            ax[1].plot(
-                time,
-                tau[:, i],
-                label=f"Joint {i + 1}",
-            )
-        ax[1].set_ylabel(r"$\tau$")
-        ax[1].set_title("Control Torque")
-        ax[1].legend(loc="upper right")
-
-        # Control Torque normalized to torque limits
-        tau = np.array(self.tau_cmd_hist)
-        torque_limits = np.asarray(torque_limits)
-        tau_normalized = tau / torque_limits[None, :]
-        for i in range(tau_normalized.shape[1]):
-            ax[2].plot(
-                time,
-                tau_normalized[:, i],
-                label=f"Joint {i + 1}",
-            )
-        ax[2].axhline(1.0, linestyle="--")
-        ax[2].axhline(-1.0, linestyle="--")
-        ax[2].set_ylabel(r"$\tau / \tau_{\max}$")
-        ax[2].set_title("Normalized Control Torque")
-        ax[2].legend(loc="upper right")
-
-        plt.tight_layout()
-        plt.show()
 
 
 class TorqueControllerQP(TorqueController):
-    def __init__(
-        self,
-        robot,
-        tasks,
-    ):
-        super().__init__(robot, tasks)
+    def __init__(self):
+        super().__init__()
 
-    def _compute_control_torque(self):
-        """function to compute the control torques for the task with the qp
+    def compute_control_torque(self, state, tasks, torque_limits):
+        """Function to compute the control torques for the task with the QP, as seen in the paper.
+
+        Receives:
+            state (dict): state from robot
+            tasks (list): list of control objectives in order of priority
+            torque_limits (list): maximum allowed joint torque
 
         Returns:
             numpy array: desired control torques
         """
 
-        # read robot state
-        state = self.robot.get_state()
-
+        # retrieve dynamics
         M = state["M"]
         h = state["h"]
 
@@ -127,11 +33,11 @@ class TorqueControllerQP(TorqueController):
         n = M.shape[0]
 
         # save task jacobian and optimal torque for each task
-        J_task_history = [None] * len(self.tasks)
-        tau_opt_history = [None] * len(self.tasks)
+        J_task_history = [None] * len(tasks)
+        tau_opt_history = [None] * len(tasks)
 
         # iterate over all tasks in order
-        for i, task in enumerate(self.tasks):
+        for i, task in enumerate(tasks):
 
             # update task and retrieve task jacobian and desired force f_i
             J_i, f_i = task.update(state)
@@ -149,8 +55,8 @@ class TorqueControllerQP(TorqueController):
 
             # enforce robot torque limits (Equation 19/21)
             constraints = [
-                tau_i >= self.robot.tau_min - h,
-                tau_i <= self.robot.tau_max - h,
+                tau_i >= -torque_limits - h,
+                tau_i <= torque_limits - h,
             ]
 
             # enforce all higher priority tasks as constraints (Equation 18)
@@ -164,7 +70,9 @@ class TorqueControllerQP(TorqueController):
             problem = cp.Problem(objective, constraints)
             problem.solve(verbose=False)
             if problem.status == cp.INFEASIBLE:
-                raise ValueError("Optimization problem is infeasible, try loosening torque limit constraints.")
+                raise ValueError(
+                    "Optimization problem is infeasible, try loosening torque limit constraints."
+                )
 
             # save the task jacobian and optimal tau
             tau_opt_history[i] = tau_i.value
@@ -176,30 +84,26 @@ class TorqueControllerQP(TorqueController):
         # compensate gravity and coriolis
         tau_cmd = tau_motion + h
 
-        # save tau for plotting
-        self.tau_cmd_hist.append(tau_cmd)
-
         return tau_cmd
 
 
 class TorqueControllerTraditional(TorqueController):
-    def __init__(
-        self,
-        robot,
-        tasks,
-    ):
-        super().__init__(robot, tasks)
+    def __init__(self):
+        super().__init__()
 
-    def _compute_control_torque(self):
+    def compute_control_torque(self, state, tasks, torque_limits):
         """function to compute the control torques for the task with traditional nullspace conntrol approach
+
+        Receives:
+            state (dict): state from robot
+            tasks (list): list of control objectives in order of priority
+            torque_limits (list): maximum allowed joint torque
 
         Returns:
             numpy array: desired control torques
         """
 
-        # retrieve state
-        state = self.robot.get_state()
-
+        # retrieve dynamics
         M = state["M"]
         h = state["h"]
 
@@ -212,7 +116,7 @@ class TorqueControllerTraditional(TorqueController):
         # nullspace projector N
         N = np.eye(n)
 
-        for task in self.tasks:
+        for task in tasks:
 
             # get task Jacobian and desired force
             J, f = task.update(state)
@@ -230,14 +134,10 @@ class TorqueControllerTraditional(TorqueController):
             # update nullspace projector
             N = N @ (np.eye(n) - J_bar @ J_proj)
 
-
         # compensate gravity and coriolis
         tau_cmd = tau_motion + h
 
         # clip torques
-        tau_cmd = np.clip(tau_cmd, self.robot.tau_min, self.robot.tau_max)
-
-        # save tau for plotting
-        self.tau_cmd_hist.append(tau_cmd)
+        tau_cmd = np.clip(tau_cmd, -torque_limits, torque_limits)
 
         return tau_cmd

@@ -5,9 +5,10 @@ import genesis as gs
 
 
 class Robot:
-    def __init__(self, scene, robot_xml_path, ee_frame_name="attachment"):
-        # add robot to the scene
+    def __init__(self, scene, robot_xml_path, gravity, ee_frame_name="attachment"):
         self.scene = scene
+
+        # add robot to the scene
         self.genesis_robot_model = self.scene.add_entity(
             gs.morphs.MJCF(
                 file=robot_xml_path,
@@ -34,6 +35,7 @@ class Robot:
 
         # create pinocchio robot model
         self.pin_robot_model = pin.buildModelsFromMJCF(filename=robot_xml_path)[0]
+        self.pin_robot_model.gravity = pin.Motion(np.array(gravity), np.zeros(3))
         self.pin_data = self.pin_robot_model.createData()
         self.pin_ee_frame_id = self.pin_robot_model.getFrameId(ee_frame_name)
         self.pin_ee_joint_id = self.pin_robot_model.frames[
@@ -46,56 +48,46 @@ class Robot:
         )
         self.genesis_end_effector_idx = self.genesis_end_effector.idx_local
 
-        # torque limits
-        self.tau_min, self.tau_max = None, None
-
-    def set_torque_limits(self, value: list = []):
-        """
-        Set torque limits, uses default limits from genesis robot model if no value is passed
+    def retrieve_torque_limits(self, torque_limits=None):
+        """Retrieve torque limits from genesis model, optionally provide artificial torque limits
 
         Args:
-            value: list of torque limits that override the default for specified joints
-                example: [10, 10, None, None, 5, None, None]
+            torque_limits (list | None), optional: torque limits in form [None, 12, 100, None, ... , 10], overwrites default limits for valid entries
 
         Returns:
-            tuple: (lower torque limits, upper torque limits)
+            tau_max (np.array): torque limits
         """
 
-        # get default limits from genesis model
-        tau_min, tau_max = self.genesis_robot_model.get_dofs_force_range(
-            self.robot_dofs_idx
-        )
-
-        tau_min = tau_min.cpu().numpy()
+        # get torque limits from genesis model
+        _, tau_max = self.genesis_robot_model.get_dofs_force_range()
         tau_max = tau_max.cpu().numpy()
 
-        # override selected limits
-        for i, limit in enumerate(value):
-            if limit is not None:
-                tau_min[i] = -abs(limit)
-                tau_max[i] = abs(limit)
+        # override selected limits symmetrically
+        if torque_limits is not None:
+            for i, limit in enumerate(torque_limits):
+                if limit is not None:
+                    tau_max[i] = limit
 
-        self.tau_min = tau_min
-        self.tau_max = tau_max
+        return tau_max
 
-        return tau_min, tau_max
+    def set_qpos(self, qpos):
+        """Directly set a joint configuration."""
 
-    def set_initial_qpos(self, qpos):
-        # set robot initial q
         self.genesis_robot_model.set_qpos(qpos, self.robot_dofs_idx)
-        self.scene.step()
 
-    def set_initial_pos(self, pos, quat=None):
-        # set initial ee position
+    def set_pos(self, pos, quat=None):
+        """Use inverse kinematics to directly set an ee position and quaternion."""
+
         qpos = self.genesis_robot_model.inverse_kinematics(
             link=self.genesis_end_effector, pos=pos, quat=quat
         )
-        self.set_initial_qpos(qpos)
+
+        self.set_qpos(qpos)
 
     def get_state(self):
         """Read the current robot state."""
 
-        # ----------------- read state from genesis robot model -----------------
+        # ----------------- read joint state from genesis robot model -----------------
         q = (
             self.genesis_robot_model.get_dofs_position(self.robot_dofs_idx)
             .cpu()
@@ -107,7 +99,7 @@ class Robot:
             .numpy()
         )
 
-        # -------------- use pinocchio for the rest --------------
+        # -------------- use pinocchio for calculations --------------
         # kinematics
         pin.forwardKinematics(
             self.pin_robot_model,
@@ -128,6 +120,7 @@ class Robot:
 
         # ee frame pose and velocity
         oM_ee = self.pin_data.oMf[self.pin_ee_frame_id]
+        x = oM_ee.translation.copy()
 
         ee_velocity = pin.getFrameVelocity(
             self.pin_robot_model,
@@ -135,10 +128,9 @@ class Robot:
             self.pin_ee_frame_id,
             pin.LOCAL_WORLD_ALIGNED,
         )
-
-        x = oM_ee.translation.copy()
-        ee_rotation = oM_ee.rotation.copy()
         x_dot = ee_velocity.linear.copy()
+
+        ee_rotation = oM_ee.rotation.copy()
         quaternion = pin.Quaternion(ee_rotation).coeffs().copy()
 
         # jacobian
