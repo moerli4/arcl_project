@@ -58,3 +58,36 @@ def plot_cartesian_pos_errors(tasks, tau, torque_limits, dt=0.01):
 
     plt.tight_layout()
     plt.show()
+
+def print_metrics(
+    tau_cmd_hist,
+    tasks,
+    computation_times,
+    dt=0.01,
+    transient_time=5.0,
+):
+    tau_cmd_hist = np.asarray(tau_cmd_hist)
+    computation_times = np.asarray(computation_times)
+
+    start_idx = int(transient_time / dt)
+
+    # computation
+    comp_time_ms = np.mean(computation_times) * 1e3
+
+    # torque
+    tau_rms = np.sqrt(np.mean(tau_cmd_hist**2))
+
+    print("-----------------------------")
+    print(f"Computation time : {comp_time_ms:8.3f} ms")
+    print(f"RMS torque       : {tau_rms:8.3f} Nm")
+
+    # tracking
+    for i, task in enumerate(tasks):
+        error_hist = np.asarray(task.error_hist)[start_idx:]
+        error_norm = np.linalg.norm(error_hist, axis=1)
+
+        rmse = np.sqrt(np.mean(error_norm**2))
+        max_error = np.max(np.abs(error_hist))
+
+        print(f"Task {i} RMSE     : {rmse:8.4f} m")
+        print(f"Task {i} Max Error     : {max_error:8.4f} m")

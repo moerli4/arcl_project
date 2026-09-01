@@ -17,8 +17,8 @@ class Task:
 class XPositionTask(Task):
     """Move end effector to a desired x."""
 
-    def __init__(self, x_des):
-        super().__init__(K=20, D=10)
+    def __init__(self, x_des, K, D):
+        super().__init__(K=K, D=D)
 
         self.x_des = x_des
         self.error_hist = []
@@ -44,8 +44,8 @@ class XPositionTask(Task):
 class YPositionTask(Task):
     """Move end effector to a desired y."""
 
-    def __init__(self, y_des):
-        super().__init__(K=20, D=10)
+    def __init__(self, y_des, K, D):
+        super().__init__(K=K, D=D)
 
         self.y_des = y_des
         self.error_hist = []
@@ -71,14 +71,8 @@ class YPositionTask(Task):
 class ZSinusoidalTask(Task):
     """Track a sinusoidal trajectory along the endeffectors z axis."""
 
-    def __init__(
-        self,
-        z_center,
-        amplitude,
-        frequency,
-        dt,
-    ):
-        super().__init__(K=20, D=10)
+    def __init__(self, z_center, amplitude, frequency, dt, K, D):
+        super().__init__(K=K, D=D)
 
         self.z_center = z_center
         self.amplitude = amplitude
@@ -124,8 +118,17 @@ class ZSinusoidalTask(Task):
 class SphereTask(Task):
     """Use virtual joint to constrain the end effector to a sphere of specified radius around a specified point."""
 
-    def __init__(self, robot, radius, center, scene, ee_frame_name="attachment"):
-        super().__init__(K=20, D=10)
+    def __init__(
+        self,
+        robot,
+        radius,
+        center,
+        scene,
+        K,
+        D,
+        ee_frame_name="attachment",
+    ):
+        super().__init__(K=K, D=D)
 
         self.model = robot.pin_robot_model.copy()
         self.center = center

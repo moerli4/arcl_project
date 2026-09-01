@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import time
 
+
 def run(
     tasks,
     controller=TorqueControllerQP(),
@@ -100,6 +101,8 @@ def run(
 
         # step time
         t += dt
+
+    scene.destroy()
 
     tau_cmd_hist = np.array(tau_cmd_hist)
     return tau_cmd_hist, tasks, torque_limits, computation_times

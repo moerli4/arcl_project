@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy as cp
 
+
 class TorqueController:
     def __init__(self):
         pass
@@ -10,8 +11,11 @@ class TorqueController:
 
 
 class TorqueControllerQP(TorqueController):
-    def __init__(self):
+    def __init__(self, epsilon=1e-6):
         super().__init__()
+
+        # regularisation factor epsilon
+        self.epsilon = epsilon
 
     def compute_control_torque(self, state, tasks, torque_limits):
         """Function to compute the control torques for the task with the QP, as seen in the paper.
@@ -48,7 +52,7 @@ class TorqueControllerQP(TorqueController):
             # define quadratic minimization problem with cvxpy (Equation 18)
             objective = cp.Minimize(
                 cp.sum_squares(J_i @ M_inv @ tau_i - J_i @ M_inv @ J_i.T @ f_i)
-                + 1e-6 * cp.sum_squares(tau_i)
+                + self.epsilon * cp.sum_squares(tau_i)
             )
 
             constraints = []
