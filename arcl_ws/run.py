@@ -38,9 +38,6 @@ def run(
     Returns:
         tau_cmd_hist, tasks, torque_limits
     """
-    # reset tasks and controller
-    [task.reset() for task in tasks]
-
     # create scene
     scene = gs.Scene(
         show_viewer=show_viewer,
@@ -102,7 +99,16 @@ def run(
         # step time
         t += dt
 
+    # extract task errors for plots and reset the tasks
+    task_error_hists = []
+    for task in tasks:
+        task_error_hists.append(task.get_errors())
+        task.reset()
+
+    # convert command torques for plots
+    tau_cmd_hist = np.array(tau_cmd_hist)
+
+    # reset the simulation
     scene.destroy()
 
-    tau_cmd_hist = np.array(tau_cmd_hist)
-    return tau_cmd_hist, tasks, torque_limits, computation_times
+    return {"tau_cmd_hist":tau_cmd_hist,"task_error_hists": task_error_hists,"computation_times":computation_times,"torque_limits":torque_limits}
