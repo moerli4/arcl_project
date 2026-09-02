@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def plot_results(
     ax,
     controller_results: dict,
@@ -32,9 +33,7 @@ def plot_results(
 
     ax[0].set_xlabel("Time [s]")
     ax[0].set_ylabel("Position error [m]")
-    ax[0].set_title(
-        f"{controller_type}\nCartesian Position Errors"
-    )
+    ax[0].set_title(f"{controller_type}\nCartesian Position Errors")
     ax[0].grid(True)
     ax[0].legend(loc="upper right")
 
@@ -97,6 +96,7 @@ def plot(results: dict, dt=0.01, show_normalized_torque=True, sharey=False):
     fig.tight_layout()
     plt.show()
 
+
 def show_metrics(
     results: dict,
     dt=0.01,
@@ -108,9 +108,7 @@ def show_metrics(
 
         tau_cmd_hist = np.asarray(controller_results["tau_cmd_hist"])
         task_error_hists = controller_results["task_error_hists"]
-        computation_times = np.asarray(
-            controller_results["computation_times"]
-        )
+        computation_times = np.asarray(controller_results["computation_times"])
 
         start_idx = int(transient_time / dt)
 
@@ -118,9 +116,7 @@ def show_metrics(
         comp_time_ms = np.mean(computation_times[start_idx:]) * 1e3
 
         # ------- Torque -------
-        tau_rms = np.sqrt(
-            np.mean(tau_cmd_hist[start_idx:] ** 2)
-        )
+        tau_rms = np.sqrt(np.mean(tau_cmd_hist[start_idx:] ** 2))
 
         controller_metrics = {
             "Computation time [ms]": comp_time_ms,

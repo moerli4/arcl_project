@@ -111,4 +111,9 @@ def run(
     # reset the simulation
     scene.destroy()
 
-    return {"tau_cmd_hist":tau_cmd_hist,"task_error_hists": task_error_hists,"computation_times":computation_times,"torque_limits":torque_limits}
+    return {
+        "tau_cmd_hist": tau_cmd_hist,
+        "task_error_hists": task_error_hists,
+        "computation_times": computation_times,
+        "torque_limits": torque_limits,
+    }

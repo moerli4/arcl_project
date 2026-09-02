@@ -12,7 +12,7 @@ class Task:
 
     def get_errors(self):
         return np.array(self.error_hist)
-    
+
     def reset(self):
         self.error_hist = []
 
