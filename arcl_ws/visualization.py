@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_cartesian_pos_errors(tasks, tau, torque_limits, dt=0.01):
+def plot_cartesian_pos_errors(tasks, tau, torque_limits, dt=0.01, show_normalized_ctrl_torque=True):
     """Function to plot cartesian position error and control torque over time."""
 
-    _, ax = plt.subplots(3, 1, figsize=(15, 7), sharex=True)
+    _, ax = plt.subplots(3 if show_normalized_ctrl_torque else 2, 1, figsize=(15, 8 if show_normalized_ctrl_torque else 6), sharex=True)
 
     # ------- Cartesian position error -------
     for i, task in enumerate(tasks):
@@ -35,26 +35,27 @@ def plot_cartesian_pos_errors(tasks, tau, torque_limits, dt=0.01):
         ax[1].plot(
             time,
             tau[:, i],
-            label=f"Joint {i + 1}",
+            # label=f"Joint {i + 1}",
         )
     ax[1].set_ylabel(r"$\tau$")
     ax[1].set_title("Control Torque")
     ax[1].legend(loc="upper right")
 
     # ------- Control Torque normalized to torque limits -------
-    tau_normalized = tau / torque_limits[None, :]
+    if show_normalized_ctrl_torque:
+        tau_normalized = tau / torque_limits[None, :]
 
-    for i in range(tau_normalized.shape[1]):
-        ax[2].plot(
-            time,
-            tau_normalized[:, i],
-            label=f"Joint {i + 1}",
-        )
-    ax[2].axhline(1.0, linestyle="--")
-    ax[2].axhline(-1.0, linestyle="--")
-    ax[2].set_ylabel(r"$\tau / \tau_{\max}$")
-    ax[2].set_title("Normalized Control Torque")
-    ax[2].legend(loc="upper right")
+        for i in range(tau_normalized.shape[1]):
+            ax[2].plot(
+                time,
+                tau_normalized[:, i],
+                # label=f"Joint {i + 1}",
+            )
+        ax[2].axhline(1.0, linestyle="--")
+        ax[2].axhline(-1.0, linestyle="--")
+        ax[2].set_ylabel(r"$\tau / \tau_{\max}$")
+        ax[2].set_title("Normalized Control Torque")
+        ax[2].legend(loc="upper right")
 
     plt.tight_layout()
     plt.show()
