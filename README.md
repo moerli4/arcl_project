@@ -8,7 +8,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r ./requirements.txt
 ```
-Run simulation from the ipynb.
+Run experiments from experiments.ipynb
 
 ------------
 Authors: Kadri Bajrami and Moritz Geissler

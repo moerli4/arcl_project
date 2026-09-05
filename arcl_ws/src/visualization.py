@@ -6,7 +6,7 @@ def plot_results(
     ax,
     controller_results: dict,
     dt: float,
-    show_normalized_torque: bool,
+    normalize_torque: bool,
     controller_type: str,
 ):
     task_error_hists = controller_results["task_error_hists"]
@@ -38,47 +38,43 @@ def plot_results(
     ax[0].legend(loc="upper right")
 
     # ------- Control Torque -------
-
     torque_time = np.arange(1, len(tau_cmd_hist) + 1) * dt
 
-    for i in range(tau_cmd_hist.shape[1]):
-        ax[1].plot(
-            torque_time,
-            tau_cmd_hist[:, i],
-        )
+    if normalize_torque:
+        # normalize control torque to torque limits
 
-    ax[1].set_ylabel(r"$\tau$ [Nm]")
-    ax[1].set_title("Control Torque")
-    ax[1].grid(True)
-
-    # ------- Normalized Control Torque -------
-
-    if show_normalized_torque:
         tau_normalized = tau_cmd_hist / torque_limits[None, :]
 
         for i in range(tau_normalized.shape[1]):
-            ax[2].plot(
+            ax[1].plot(
                 torque_time,
                 tau_normalized[:, i],
             )
 
-        ax[2].axhline(1.0, linestyle="--")
-        ax[2].axhline(-1.0, linestyle="--")
-        ax[2].set_ylabel(r"$\tau / \tau_{\max}$")
-        ax[2].set_title("Normalized Control Torque")
-        ax[2].grid(True)
+        ax[1].axhline(1.0, linestyle="--")
+        ax[1].axhline(-1.0, linestyle="--")
+        ax[1].set_ylabel(r"$\tau / \tau_{\max}$")
+        ax[1].set_title("Normalized Control Torque")
+        ax[1].grid(True)
+    else:
+        for i in range(tau_cmd_hist.shape[1]):
+            ax[1].plot(
+                torque_time,
+                tau_cmd_hist[:, i],
+            )
+        ax[1].set_ylabel(r"$\tau$ [Nm]")
+        ax[1].set_title("Control Torque")
+        ax[1].grid(True)
 
-
-def plot(results: dict, dt=0.01, show_normalized_torque=True, sharey=False):
+def plot(results: dict, dt=0.01, normalize_torque=True, sharey=False):
     """Plot results"""
 
-    n_rows = 3 if show_normalized_torque else 2
     n_cols = len(results)
 
     fig, ax = plt.subplots(
-        n_rows,
+        2,
         n_cols,
-        figsize=(8 * n_cols, 8 if show_normalized_torque else 6),
+        figsize=(8 * n_cols, 6),
         sharex=True,
         sharey="row" if sharey else False,
         squeeze=False,
@@ -89,7 +85,7 @@ def plot(results: dict, dt=0.01, show_normalized_torque=True, sharey=False):
             ax=ax[:, i],
             controller_results=controller_results,
             dt=dt,
-            show_normalized_torque=show_normalized_torque,
+            normalize_torque=normalize_torque,
             controller_type=controller_type,
         )
 

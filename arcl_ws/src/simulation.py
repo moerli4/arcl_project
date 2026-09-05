@@ -1,6 +1,6 @@
 import genesis as gs
-from robot import Robot
-from controller import TorqueControllerQP
+from .robot import Robot
+from .controller import TorqueControllerQP
 from pathlib import Path
 import numpy as np
 import time
